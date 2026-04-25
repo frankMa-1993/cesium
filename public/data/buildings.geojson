@@ -1,0 +1,20 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type":"Feature","properties":{"name":"A栋办公楼","height":80,"type":"办公","floor":20},"geometry":{"type":"Polygon","coordinates":[[[120.135,30.245],[120.136,30.245],[120.136,30.244],[120.135,30.244],[120.135,30.245]]]}},
+    {"type":"Feature","properties":{"name":"B栋研发中心","height":120,"type":"科研","floor":30},"geometry":{"type":"Polygon","coordinates":[[[120.137,30.246],[120.1385,30.246],[120.1385,30.2448],[120.137,30.2448],[120.137,30.246]]]}},
+    {"type":"Feature","properties":{"name":"C栋商业综合体","height":60,"type":"商业","floor":15},"geometry":{"type":"Polygon","coordinates":[[[120.139,30.243],[120.14,30.243],[120.14,30.242],[120.139,30.242],[120.139,30.243]]]}},
+    {"type":"Feature","properties":{"name":"D栋住宅楼","height":100,"type":"住宅","floor":28},"geometry":{"type":"Polygon","coordinates":[[[120.134,30.242],[120.135,30.242],[120.135,30.241],[120.134,30.241],[120.134,30.242]]]}},
+    {"type":"Feature","properties":{"name":"E栋数据中心","height":45,"type":"工业","floor":8},"geometry":{"type":"Polygon","coordinates":[[[120.136,30.248],[120.137,30.248],[120.137,30.2472],[120.136,30.2472],[120.136,30.248]]]}},
+    {"type":"Feature","properties":{"name":"F栋酒店","height":90,"type":"酒店","floor":22},"geometry":{"type":"Polygon","coordinates":[[[120.141,30.245],[120.142,30.245],[120.142,30.244],[120.141,30.244],[120.141,30.245]]]}},
+    {"type":"Feature","properties":{"name":"G栋会展中心","height":55,"type":"会展","floor":12},"geometry":{"type":"Polygon","coordinates":[[[120.132,30.246],[120.1335,30.246],[120.1335,30.245],[120.132,30.245],[120.132,30.246]]]}},
+    {"type":"Feature","properties":{"name":"H栋体育馆","height":40,"type":"体育","floor":5},"geometry":{"type":"Polygon","coordinates":[[[120.14,30.247],[120.1415,30.247],[120.1415,30.246],[120.14,30.246],[120.14,30.247]]]}},
+    {"type":"Feature","properties":{"name":"I栋图书馆","height":35,"type":"文化","floor":7},"geometry":{"type":"Polygon","coordinates":[[[120.133,30.2485],[120.134,30.2485],[120.134,30.2478],[120.133,30.2478],[120.133,30.2485]]]}},
+    {"type":"Feature","properties":{"name":"J栋医院","height":70,"type":"医疗","floor":16},"geometry":{"type":"Polygon","coordinates":[[[120.138,30.241],[120.1395,30.241],[120.1395,30.24],[120.138,30.24],[120.138,30.241]]]}},
+    {"type":"Feature","properties":{"name":"K栋学校","height":30,"type":"教育","floor":6},"geometry":{"type":"Polygon","coordinates":[[[120.131,30.244],[120.132,30.244],[120.132,30.243],[120.131,30.243],[120.131,30.244]]]}},
+    {"type":"Feature","properties":{"name":"L栋工厂","height":50,"type":"工业","floor":10},"geometry":{"type":"Polygon","coordinates":[[[120.142,30.242],[120.143,30.242],[120.143,30.241],[120.142,30.241],[120.142,30.242]]]}},
+    {"type":"Feature","properties":{"name":"M栋商场","height":65,"type":"商业","floor":14},"geometry":{"type":"Polygon","coordinates":[[[120.1345,30.2395],[120.1355,30.2395],[120.1355,30.2385],[120.1345,30.2385],[120.1345,30.2395]]]}},
+    {"type":"Feature","properties":{"name":"N栋公寓","height":85,"type":"住宅","floor":24},"geometry":{"type":"Polygon","coordinates":[[[120.1375,30.238],[120.1385,30.238],[120.1385,30.237],[120.1375,30.237],[120.1375,30.238]]]}},
+    {"type":"Feature","properties":{"name":"O栋写字楼","height":110,"type":"办公","floor":26},"geometry":{"type":"Polygon","coordinates":[[[120.14,30.239],[120.141,30.239],[120.141,30.238],[120.14,30.238],[120.14,30.239]]]}}
+  ]
+}

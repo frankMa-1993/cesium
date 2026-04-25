@@ -1,0 +1,23 @@
+// 设计稿基准
+$design-width: 1920px;
+$design-height: 1080px;
+
+// 色彩系统
+$primary: #00f0ff;
+$secondary: #007aff;
+$warning: #ff9c00;
+$danger: #ff4d4f;
+$success: #52c41a;
+
+$bg-dark: #050b14;
+$bg-panel: rgba(6, 22, 48, 0.85);
+$border-color: rgba(0, 240, 255, 0.25);
+
+// 文字
+$text-primary: #ffffff;
+$text-secondary: rgba(255, 255, 255, 0.75);
+$text-muted: rgba(255, 255, 255, 0.45);
+
+// 布局
+$header-height: 80px;
+$panel-width: 300px;
