@@ -1,0 +1,49 @@
+{
+  "name": "@cesium-eco/ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vue 3 组件库 — MapViewer、StatCard、TrendChart",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./components/*.vue": {
+      "import": "./dist/components/*.js"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vue-tsc --noEmit && vite build",
+    "dev": "vite build --watch",
+    "clean": "rm -rf dist node_modules/.cache",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "peerDependencies": {
+    "cesium": "^1.100.0",
+    "vue": "^3.5.0"
+  },
+  "dependencies": {
+    "@cesium-eco/api": "workspace:*",
+    "@cesium-eco/core": "workspace:*",
+    "@cesium-eco/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@cesium-eco/config": "workspace:*",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "cesium": "1.100",
+    "sass": "^1.99.0",
+    "sass-embedded": "^1.99.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10",
+    "vue": "^3.5.32",
+    "vue-tsc": "^3.2.7"
+  }
+}

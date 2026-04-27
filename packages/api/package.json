@@ -1,0 +1,38 @@
+{
+  "name": "@cesium-eco/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API 接口层 — axios 封装、Mock 数据、接口定义",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./mock": {
+      "import": "./dist/mock/index.js",
+      "types": "./dist/mock/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "clean": "rm -rf dist node_modules/.cache",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "axios": "^1.15.2"
+  },
+  "devDependencies": {
+    "@cesium-eco/config": "workspace:*",
+    "@cesium-eco/shared": "workspace:*",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  }
+}

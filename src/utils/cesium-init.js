@@ -5,7 +5,7 @@ import { addWaterSurface, removeWaterSurface } from './cesium-water.js'
 
 // 全局 Cesium 配置
 Cesium.Ion.defaultAccessToken =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYWE3ZDAwZS0zMjBhLTRkMjgtYjA3My1hMjA1MjExYTNmMzYiLCJpZCI6NTYwODUsImlhdCI6MTY5NjA0MjE3OH0.MmK0RXva9E8Z7aW3F9X7v3z9z9z9z9z9z9z9z9z9z9z' // 公开 placeholder，可替换
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlZTc1Y2Q1OS0yMGYxLTRjOTMtOTI0MS05Nzc1NzU3MTcyNDAiLCJpZCI6MTk3ODkzLCJpYXQiOjE3MDg5Mjk1MTF9.t58CnEzJL221M_DibM3wla1_K5HUpf0BaJKsCmGqJ_w' // 公开 placeholder，可替换
 
 const TIANDITU_TOKEN = __TIANDITU_TOKEN__ || 'your_tianditu_token_here'
 

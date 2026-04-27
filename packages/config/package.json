@@ -1,0 +1,23 @@
+{
+  "name": "@cesium-eco/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "共享配置包 — ESLint、TypeScript、Vite 配置",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": {
+      "import": "./src/index.js"
+    },
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./vite.base.ts": "./vite.base.ts"
+  },
+  "files": [
+    "src",
+    "tsconfig.base.json",
+    "vite.base.ts"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist node_modules/.cache"
+  }
+}

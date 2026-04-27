@@ -1,0 +1,48 @@
+{
+  "name": "@cesium-eco/app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "大屏示例应用 — Dashboard 页面、路由、状态管理",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vue-tsc --noEmit && vite build",
+    "dev": "vite build --watch",
+    "clean": "rm -rf dist node_modules/.cache",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0",
+    "vue-router": "^5.0.0"
+  },
+  "dependencies": {
+    "@cesium-eco/api": "workspace:*",
+    "@cesium-eco/core": "workspace:*",
+    "@cesium-eco/shared": "workspace:*",
+    "@cesium-eco/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@cesium-eco/config": "workspace:*",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
+    "sass": "^1.99.0",
+    "sass-embedded": "^1.99.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10",
+    "vue": "^3.5.32",
+    "vue-router": "^5.0.6",
+    "vue-tsc": "^3.2.7"
+  }
+}

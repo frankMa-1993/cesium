@@ -1,0 +1,48 @@
+{
+  "name": "dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "生产级应用入口 — 全域生态环境监测大屏",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest run",
+    "test:e2e": "cypress run",
+    "test:e2e:open": "cypress open",
+    "coverage": "vitest run --coverage",
+    "clean": "rm -rf dist node_modules/.cache",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@cesium-eco/api": "workspace:*",
+    "@cesium-eco/app": "workspace:*",
+    "@cesium-eco/core": "workspace:*",
+    "@cesium-eco/shared": "workspace:*",
+    "@cesium-eco/ui": "workspace:*",
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
+    "vue": "^3.5.32",
+    "vue-router": "^5.0.6"
+  },
+  "devDependencies": {
+    "@cesium-eco/config": "workspace:*",
+    "@types/node": "^25.6.0",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vitest/coverage-v8": "^4.1.5",
+    "@vue/test-utils": "^2.4.8",
+    "cesium": "1.100",
+    "cypress": "^15.14.1",
+    "cypress-audit": "^1.1.0",
+    "jsdom": "^29.0.2",
+    "lighthouse": "^12.8.2",
+    "sass": "^1.99.0",
+    "sass-embedded": "^1.99.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10",
+    "vite-plugin-cesium": "^1.2.23",
+    "vitest": "^4.1.5",
+    "vue-tsc": "^3.2.7"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "extends": "@cesium-eco/config/tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@cesium-eco/shared": ["../shared/src"]
+    },
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"]
+}

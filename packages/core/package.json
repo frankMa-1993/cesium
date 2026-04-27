@@ -1,0 +1,35 @@
+{
+  "name": "@cesium-eco/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cesium 核心封装 — Viewer、天地图、点位 Billboard、水面 Primitive、相机控制",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "clean": "rm -rf dist node_modules/.cache",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "cesium": "^1.100.0"
+  },
+  "devDependencies": {
+    "@cesium-eco/config": "workspace:*",
+    "@cesium-eco/shared": "workspace:*",
+    "cesium": "1.100",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  }
+}

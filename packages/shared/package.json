@@ -1,0 +1,35 @@
+{
+  "name": "@cesium-eco/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "共享资源包 — 类型定义、SCSS 变量、通用工具",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./styles": {
+      "import": "./dist/styles/index.js"
+    },
+    "./styles/*.scss": "./src/styles/*.scss"
+  },
+  "files": [
+    "dist",
+    "src/styles"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "clean": "rm -rf dist node_modules/.cache",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cesium-eco/config": "workspace:*",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  }
+}

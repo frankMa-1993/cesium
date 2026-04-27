@@ -1,0 +1,112 @@
+@use "@cesium-eco/shared/styles/vars.scss" as *;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: $bg-dark;
+  color: $text-primary;
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+}
+
+.screen-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: $bg-dark;
+}
+
+.data-panel {
+  background: $bg-panel;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  padding: 12px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.08) inset;
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: $primary;
+  margin-bottom: 12px;
+  padding-left: 10px;
+  border-left: 3px solid $primary;
+  line-height: 1.2;
+}
+
+.num-highlight {
+  font-family: 'DIN Alternate', 'DIN', 'Impact', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: $primary;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.3);
+  border-radius: 2px;
+}
+
+.cesium-viewer-bottom {
+  display: none !important;
+}
+.cesium-viewer-toolbar {
+  z-index: 10;
+}
+.cesium-viewer-navigationContainer {
+  z-index: 10;
+}
+
+.cesium-popup {
+  position: absolute;
+  background: rgba(6, 22, 48, 0.95);
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  padding: 12px;
+  color: $text-primary;
+  font-size: 13px;
+  pointer-events: none;
+  min-width: 180px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+
+  .popup-title {
+    font-weight: 600;
+    color: $primary;
+    margin-bottom: 8px;
+    border-bottom: 1px solid $border-color;
+    padding-bottom: 6px;
+  }
+  .popup-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    .label { color: $text-secondary; }
+    .value { color: $text-primary; font-weight: 600; }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+}

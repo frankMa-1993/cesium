@@ -1,0 +1,17 @@
+{
+  "extends": "@cesium-eco/config/tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@cesium-eco/app": ["../../packages/app/src"],
+      "@cesium-eco/ui": ["../../packages/ui/src"],
+      "@cesium-eco/core": ["../../packages/core/src"],
+      "@cesium-eco/api": ["../../packages/api/src"],
+      "@cesium-eco/shared": ["../../packages/shared/src"]
+    },
+    "types": ["vitest/globals", "node", "cesium", "cypress"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
