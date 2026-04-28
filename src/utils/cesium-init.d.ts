@@ -5,7 +5,7 @@ export function createViewer(
   options?: ConstructorParameters<typeof Viewer>[1]
 ): Viewer
 
-export function addTiandituLayers(viewer: Viewer): void
+export function addTiandituLayers(viewer: Viewer): Promise<void>
 
 export function loadBillboardPoints(
   viewer: Viewer,

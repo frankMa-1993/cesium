@@ -1,3 +1,7 @@
+/**
+ * 用户管理 REST API：统一使用 `HybridAuthGuard` + `PermissionsGuard`，
+ * 细粒度权限通过 `@RequirePermissions` 声明。
+ */
 import {
   Body,
   Controller,
@@ -21,6 +25,7 @@ import type { Response } from 'express'
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
+  /** 分页列表，支持关键字与状态筛选 */
   @Get()
   @RequirePermissions('user:read')
   list(
@@ -45,6 +50,7 @@ export class UsersController {
     return this.users.setStatus(body.ids, body.status)
   }
 
+  /** 重置为随机临时密码；非生产环境响应中带 `devTempPassword` 便于联调 */
   @Post('batch/reset-password')
   @RequirePermissions('user:write')
   batchReset(@Body() body: { ids: string[] }) {
@@ -57,6 +63,7 @@ export class UsersController {
     return this.users.assignRoles(body.userId, body.roleIds)
   }
 
+  /** UTF-8 BOM + CSV，Excel 可直接打开中文列 */
   @Get('export')
   @RequirePermissions('user:export')
   async export(@Res() res: Response) {

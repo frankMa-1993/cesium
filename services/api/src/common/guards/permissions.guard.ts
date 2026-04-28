@@ -1,3 +1,9 @@
+/**
+ * RBAC 权限守卫：读取 `RequirePermissions` 声明的权限列表，与 `req.user.permissions` 比对。
+ *
+ * 须在 `HybridAuthGuard` 之后执行，以确保 `req.user` 已填充。
+ * 未声明权限的路由默认放行（仅登录即可）。
+ */
 import {
   CanActivate,
   ExecutionContext,

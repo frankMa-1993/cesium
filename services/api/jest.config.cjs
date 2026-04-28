@@ -1,3 +1,7 @@
+/**
+ * Jest 配置：根目录为 `src`，仅匹配 `*.spec.ts`；当前覆盖率采集限定 `jwt-token.service.ts`。
+ * `moduleNameMapper` 与源码中的 `@/` 别名对齐（若使用）。
+ */
 /** @type {import('jest').Config} */
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],

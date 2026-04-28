@@ -4,7 +4,12 @@
     <header class="screen-header">
       <div class="header-bg">
         <h1 class="header-title">🌍 全域生态环境监测大屏</h1>
-        <div class="header-time">{{ currentTime }}</div>
+        <div class="header-actions">
+          <button type="button" class="btn-back-admin" @click="goToAdmin">
+            返回管理系统
+          </button>
+          <div class="header-time">{{ currentTime }}</div>
+        </div>
       </div>
     </header>
 
@@ -121,6 +126,12 @@ function updateTime() {
   })
 }
 
+const adminHomeUrl = `${String(import.meta.env.VITE_ADMIN_PUBLIC_URL || 'http://localhost:5176').replace(/\/$/, '')}/#/`
+
+function goToAdmin() {
+  window.location.assign(adminHomeUrl)
+}
+
 async function loadData() {
   try {
     const [oRes, aRes, tRes] = await Promise.all([
@@ -188,14 +199,51 @@ onBeforeUnmount(() => {
     text-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
   }
 
-  .header-time {
+  .header-actions {
     position: absolute;
     right: 24px;
     top: 50%;
     transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 2;
+  }
+
+  .header-time {
     font-size: 14px;
     color: $text-secondary;
     font-family: 'DIN Alternate', monospace;
+    white-space: nowrap;
+  }
+
+  .btn-back-admin {
+    flex-shrink: 0;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: #0a1628;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: 2px solid rgba(0, 240, 255, 0.85);
+    background: linear-gradient(180deg, rgba(0, 240, 255, 0.95) 0%, rgba(0, 168, 232, 0.9) 100%);
+    box-shadow:
+      0 0 0 1px rgba(0, 240, 255, 0.35),
+      0 4px 18px rgba(0, 240, 255, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  }
+
+  .btn-back-admin:hover {
+    filter: brightness(1.08);
+    box-shadow:
+      0 0 0 1px rgba(0, 240, 255, 0.6),
+      0 6px 22px rgba(0, 240, 255, 0.45);
+    transform: translateY(-1px);
+  }
+
+  .btn-back-admin:active {
+    transform: translateY(0);
   }
 }
 
@@ -203,6 +251,8 @@ onBeforeUnmount(() => {
   flex: 1;
   display: grid;
   grid-template-columns: $panel-width 1fr $panel-width;
+  /* 单行占满标题栏以下剩余高度，避免左侧内容把行高撑出视口 */
+  grid-template-rows: 1fr;
   gap: 12px;
   padding: 12px;
   min-height: 0;
@@ -223,6 +273,7 @@ onBeforeUnmount(() => {
 
 .panel-center {
   min-height: 0;
+  height: 100%;
   overflow: hidden;
   border-radius: 4px;
   border: 1px solid $border-color;
@@ -326,20 +377,10 @@ onBeforeUnmount(() => {
   }
 }
 
+/* 大屏固定左-中-右；过窄窗口仅缩小侧栏，避免误触 1200px 堆叠把地图挤到视口外 */
 @media (max-width: 1200px) {
   .screen-body {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr auto;
-  }
-  .panel-left,
-  .panel-right {
-    flex-direction: row;
-    flex-wrap: wrap;
-    overflow-x: auto;
-    .data-panel {
-      min-width: 240px;
-      flex: 1;
-    }
+    grid-template-columns: minmax(220px, $panel-width) 1fr minmax(220px, $panel-width);
   }
 }
 </style>

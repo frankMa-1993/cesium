@@ -1,3 +1,6 @@
+/**
+ * 字典 HTTP API：类型列表、当前生效项（最新快照）、发布、版本列表、两版本 diff。
+ */
 import {
   Body,
   Controller,
@@ -28,12 +31,14 @@ export class DictController {
     return this.dict.listTypes()
   }
 
+  /** 返回该类型下最新快照的条目数组（无快照则空数组） */
   @Get('types/:typeId/items')
   @RequirePermissions('dict:read')
   items(@Param('typeId') typeId: string) {
     return this.dict.getWorkingItems(typeId)
   }
 
+  /** 发布新版本：version 递增，snapshot 存 simple-json */
   @Post('types/:typeId/publish')
   @RequirePermissions('dict:write')
   publish(

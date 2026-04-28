@@ -1,3 +1,6 @@
+/**
+ * 审计服务：封装 `LoginLogEntity` 的分页查询与 DTO 映射。
+ */
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'

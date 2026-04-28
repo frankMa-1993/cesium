@@ -1,3 +1,6 @@
+/**
+ * 数据字典模块：字典类型、版本快照、发布与版本差异对比。
+ */
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { DictTypeEntity } from '../entities/dict-type.entity'

@@ -24,8 +24,19 @@
     </el-aside>
     <el-container>
       <el-header class="header">
-        <span class="user">{{ auth.username }}</span>
-        <el-button type="danger" link @click="handleLogout">退出</el-button>
+        <el-button
+          class="nav-to-screen-btn"
+          type="primary"
+          size="large"
+          :icon="Monitor"
+          @click="openDashboard"
+        >
+          进入大屏界面
+        </el-button>
+        <div class="header-right">
+          <span class="user">{{ auth.username }}</span>
+          <el-button type="danger" link @click="handleLogout">退出</el-button>
+        </div>
       </el-header>
       <el-main>
         <router-view />
@@ -37,13 +48,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { House } from '@element-plus/icons-vue'
+import { House, Monitor } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
 
 const menus = computed(() => auth.menus)
+
+const dashboardBase =
+  import.meta.env.VITE_DASHBOARD_PUBLIC_URL || 'http://localhost:3000'
+
+function openDashboard() {
+  const url = `${String(dashboardBase).replace(/\/$/, '')}/#/`
+  window.location.assign(url)
+}
 
 async function handleLogout() {
   await auth.logout()
@@ -65,10 +84,28 @@ async function handleLogout() {
 .header {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid #e4e7ec;
   background: #fff;
+  padding: 0 20px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.nav-to-screen-btn {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4px 14px rgba(64, 158, 255, 0.45);
+  border: none;
+  background: linear-gradient(135deg, #409eff 0%, #1d39c4 100%);
+  padding: 12px 22px;
+}
+.nav-to-screen-btn:hover {
+  box-shadow: 0 6px 18px rgba(64, 158, 255, 0.55);
+  filter: brightness(1.06);
 }
 .user {
   font-size: 14px;

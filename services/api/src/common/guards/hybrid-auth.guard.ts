@@ -1,3 +1,11 @@
+/**
+ * 混合鉴权守卫：根据 `AUTH_MODE` 在 Session 与 JWT Bearer 之间切换。
+ *
+ * - `session`：要求 `req.session.userId` 存在，并组装 `req.user`
+ * - 默认 JWT：解析 `Authorization: Bearer`，校验访问令牌后写入 `req.user`
+ *
+ * 与 `PermissionsGuard` 链式使用时，应先挂载本守卫再挂载权限守卫。
+ */
 import 'express-session'
 import {
   CanActivate,

@@ -3,11 +3,80 @@ import 'cesium/Build/Cesium/Widgets/widgets.css'
 
 import { addWaterSurface, removeWaterSurface } from './cesium-water.js'
 
-// 全局 Cesium 配置
+// 全局 Cesium 配置（须在 Ion 地形等请求前执行；可与 .env 中 VITE_CESIUM_ION_TOKEN 配合）
+const CESIUM_ION_FALLBACK =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2MTAwZGU0Zi04MzQzLTRhZTItYWY0ZS1mODU3Mzg2NjhiMWIiLCJpZCI6MTk3ODkzLCJpYXQiOjE3NzczNzAwNjV9.ZfVooVU2KF-yIEmVYsbhYugDiYCqiv44xnn4pj2ibhI'
 Cesium.Ion.defaultAccessToken =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlZTc1Y2Q1OS0yMGYxLTRjOTMtOTI0MS05Nzc1NzU3MTcyNDAiLCJpZCI6MTk3ODkzLCJpYXQiOjE3MDg5Mjk1MTF9.t58CnEzJL221M_DibM3wla1_K5HUpf0BaJKsCmGqJ_w' // 公开 placeholder，可替换
+  import.meta.env.VITE_CESIUM_ION_TOKEN || CESIUM_ION_FALLBACK
 
-const TIANDITU_TOKEN = __TIANDITU_TOKEN__ || 'your_tianditu_token_here'
+const TIANDITU_PLACEHOLDER = 'your_tianditu_token_here'
+
+function resolveTiandituToken() {
+  const fromEnv = (import.meta.env.VITE_TIANDITU_TOKEN || '').trim()
+  const fromDefine = (typeof __TIANDITU_TOKEN__ !== 'undefined' ? __TIANDITU_TOKEN__ : '').trim()
+  const raw = fromEnv || fromDefine
+  if (!raw || raw === TIANDITU_PLACEHOLDER) return ''
+  return raw
+}
+
+async function probeTianditu(token) {
+  const u = `https://t0.tianditu.gov.cn/img_w/wmts?service=WMTS&request=GetTile&version=1.0.0&layer=img&style=default&tilematrixset=w&tilematrix=1&tilerow=0&tilecol=1&format=tiles&tk=${encodeURIComponent(token)}`
+  const ac = new AbortController()
+  const tid = setTimeout(() => ac.abort(), 8000)
+  try {
+    const r = await fetch(u, { signal: ac.signal, cache: 'no-store' })
+    return { ok: r.ok, status: r.status }
+  } catch {
+    return { ok: false, status: 0 }
+  } finally {
+    clearTimeout(tid)
+  }
+}
+
+function addTiandituStack(viewer, token) {
+  const imgLayer = new Cesium.WebMapTileServiceImageryProvider({
+    url: `https://t0.tianditu.gov.cn/img_w/wmts?tk=${token}`,
+    layer: 'img',
+    style: 'default',
+    tileMatrixSetID: 'w',
+    format: 'tiles',
+    maximumLevel: 18,
+    subdomains: ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7'],
+  })
+  viewer.imageryLayers.addImageryProvider(imgLayer)
+
+  const ciaLayer = new Cesium.WebMapTileServiceImageryProvider({
+    url: `https://t0.tianditu.gov.cn/cia_w/wmts?tk=${token}`,
+    layer: 'cia',
+    style: 'default',
+    tileMatrixSetID: 'w',
+    format: 'tiles',
+    maximumLevel: 18,
+    subdomains: ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7'],
+  })
+  viewer.imageryLayers.addImageryProvider(ciaLayer)
+}
+
+function tryAddIonWorldImagery(viewer) {
+  try {
+    viewer.imageryLayers.addImageryProvider(
+      Cesium.createWorldImagery({
+        style: Cesium.IonWorldImageryStyle.AERIAL_WITH_LABELS,
+      })
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+function addOpenStreetMapBasemap(viewer) {
+  viewer.imageryLayers.addImageryProvider(
+    new Cesium.OpenStreetMapImageryProvider({
+      url: 'https://a.tile.openstreetmap.org/',
+    })
+  )
+}
 
 /**
  * 创建 Viewer
@@ -52,36 +121,34 @@ export function createViewer(container, options = {}) {
 }
 
 /**
- * 添加天地图 WMTS 底图（影像 + 注记）
+ * 添加天地图 WMTS 底图（影像 + 注记）；无效 key 或探测失败时回退 Ion 全球影像再 OSM。
  * @param {Cesium.Viewer} viewer
+ * @returns {Promise<void>}
  */
-export function addTiandituLayers(viewer) {
-  // 移除默认底图
+export async function addTiandituLayers(viewer) {
   viewer.imageryLayers.removeAll()
 
-  // 天地图影像底图
-  const imgLayer = new Cesium.WebMapTileServiceImageryProvider({
-    url: `https://t0.tianditu.gov.cn/img_w/wmts?tk=${TIANDITU_TOKEN}`,
-    layer: 'img',
-    style: 'default',
-    tileMatrixSetID: 'w',
-    format: 'tiles',
-    maximumLevel: 18,
-    subdomains: ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7'],
-  })
-  viewer.imageryLayers.addImageryProvider(imgLayer)
+  const token = resolveTiandituToken()
 
-  // 天地图影像注记
-  const ciaLayer = new Cesium.WebMapTileServiceImageryProvider({
-    url: `https://t0.tianditu.gov.cn/cia_w/wmts?tk=${TIANDITU_TOKEN}`,
-    layer: 'cia',
-    style: 'default',
-    tileMatrixSetID: 'w',
-    format: 'tiles',
-    maximumLevel: 18,
-    subdomains: ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7'],
-  })
-  viewer.imageryLayers.addImageryProvider(ciaLayer)
+  const useFallback = () => {
+    if (!tryAddIonWorldImagery(viewer)) {
+      addOpenStreetMapBasemap(viewer)
+    }
+  }
+
+  if (!token) {
+    useFallback()
+    return
+  }
+
+  const probe = await probeTianditu(token)
+
+  if (!probe.ok) {
+    useFallback()
+    return
+  }
+
+  addTiandituStack(viewer, token)
 }
 
 /**

@@ -1,3 +1,9 @@
+/**
+ * 认证模块：登录、验证码、JWT/Session 混合守卫、刷新令牌、找回密码相关仓储。
+ *
+ * 导出 `AuthService`、`JwtTokenService`、`HybridAuthGuard` 供其他模块复用
+ * （例如仅需鉴权而不暴露认证路由的模块）。
+ */
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'

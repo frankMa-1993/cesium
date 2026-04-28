@@ -1,3 +1,6 @@
+/**
+ * 字典领域服务：快照版本链、按 key 集合做 added/removed/modified 差异（共享类型 `DictItemDiffRow`）。
+ */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
@@ -30,8 +33,10 @@ export class DictService {
     return last?.snapshot ?? []
   }
 
+  /**
+   * 预留草稿入口：当前实现直接转调 publish（若需草稿表可在此拆分）。
+   */
   async saveDraft(typeId: string, items: Row[], userId?: string) {
-    /** 简化为直接发布为新版本（也可拆 draft 表） */
     return this.publish(typeId, items, userId)
   }
 
@@ -73,6 +78,9 @@ export class DictService {
     return s
   }
 
+  /**
+   * 对两个快照条目列表做 key 级 diff，输出排序后的变更列表。
+   */
   diff(
     a: Row[],
     b: Row[],

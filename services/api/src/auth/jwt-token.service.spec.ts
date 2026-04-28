@@ -1,3 +1,6 @@
+/**
+ * JwtTokenService 单元测试：覆盖签发/校验、SHA256 稳定性及错误 typ 拒绝。
+ */
 import { Test } from '@nestjs/testing'
 import { ConfigService } from '@nestjs/config'
 import { JwtTokenService } from './jwt-token.service'

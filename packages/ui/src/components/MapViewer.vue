@@ -2,9 +2,9 @@
   <div class="map-viewer">
     <div ref="cesiumContainer" class="cesium-container"></div>
 
-    <!-- 顶部：图层下拉 -->
-    <div class="map-toolbar map-toolbar--top">
-      <div class="layer-dd" ref="layerDdRef">
+    <!-- 左上：图层 + 图例（与大屏面板风格一致） -->
+    <div class="map-overlay-left">
+      <div class="layer-dd" ref="layerDdRef" :class="{ 'is-open': layerPanelOpen }">
         <button
           type="button"
           class="layer-dd__trigger"
@@ -12,19 +12,43 @@
           :aria-expanded="layerPanelOpen"
           @click.stop="layerPanelOpen = !layerPanelOpen"
         >
-          基础图层
+          <span class="layer-dd__trigger-text">基础图层</span>
+          <svg class="layer-dd__chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path fill="currentColor" d="M7 10l5 5 5-5H7z" />
+          </svg>
         </button>
         <div v-show="layerPanelOpen" class="layer-dd__panel" role="listbox" @click.stop>
           <label class="layer-dd__row">
-            <input v-model="layerWater" type="checkbox" />
+            <input v-model="layerWater" type="checkbox" class="layer-dd__check" />
             <span>水域动画图层</span>
           </label>
           <label class="layer-dd__row">
-            <input v-model="layerGaode" type="checkbox" />
+            <input v-model="layerGaode" type="checkbox" class="layer-dd__check" />
             <span>高德影像图层</span>
           </label>
         </div>
       </div>
+
+      <aside class="map-legend" aria-label="监测点状态图例">
+        <div class="map-legend__head">
+          <span class="map-legend__title">监测点状态</span>
+          <span class="map-legend__sub">与地图点位颜色一致</span>
+        </div>
+        <ul class="map-legend__list" role="list">
+          <li class="map-legend__row">
+            <span class="map-legend__swatch map-legend__swatch--online" aria-hidden="true" />
+            <span class="map-legend__label">正常</span>
+          </li>
+          <li class="map-legend__row">
+            <span class="map-legend__swatch map-legend__swatch--warning" aria-hidden="true" />
+            <span class="map-legend__label">预警</span>
+          </li>
+          <li class="map-legend__row">
+            <span class="map-legend__swatch map-legend__swatch--danger" aria-hidden="true" />
+            <span class="map-legend__label">告警</span>
+          </li>
+        </ul>
+      </aside>
     </div>
 
     <!-- 右上：重置视角 -->
@@ -85,27 +109,11 @@
       </div>
     </div>
 
-    <!-- 图例 -->
-    <div class="map-legend">
-      <div class="legend-item">
-        <span class="dot online"></span>
-        <span>正常</span>
-      </div>
-      <div class="legend-item">
-        <span class="dot warning"></span>
-        <span>预警</span>
-      </div>
-      <div class="legend-item">
-        <span class="dot danger"></span>
-        <span>告警</span>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
-import * as Cesium from 'cesium'
 import {
   createViewer,
   addTiandituLayers,
@@ -116,6 +124,7 @@ import {
   addWaterSurface,
   removeWaterSurface,
 } from '@cesium-eco/core'
+import * as Cesium from 'cesium'
 import { fetchPoints, fetchPointDetail } from '@cesium-eco/api'
 
 const DEFAULT_VIEW_HEIGHT = 5000
@@ -216,7 +225,7 @@ watch(layerGaode, (show) => setGaodeLayer(show))
 async function initMap() {
   if (!cesiumContainer.value) return
   viewer = createViewer(cesiumContainer.value)
-  addTiandituLayers(viewer)
+  await addTiandituLayers(viewer)
 
   try {
     const terrain = await (Cesium as any).createWorldTerrainAsync?.({
@@ -313,15 +322,27 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
+.map-overlay-left {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  pointer-events: none;
+  max-width: calc(100% - 56px);
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
 .map-toolbar {
   position: absolute;
   z-index: 30;
   pointer-events: auto;
-}
-
-.map-toolbar--top {
-  top: 12px;
-  left: 12px;
 }
 
 .map-toolbar--tr {
@@ -331,49 +352,86 @@ onBeforeUnmount(() => {
 
 .layer-dd {
   position: relative;
-}
+  width: 200px;
 
-.layer-dd__trigger {
-  width: 160px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 4px;
-  border: 1px solid $border-color;
-  background: rgba(6, 22, 48, 0.92);
-  color: $text-primary;
-  font-size: 13px;
-  cursor: pointer;
-  text-align: left;
-
-  &:hover {
-    border-color: rgba(0, 240, 255, 0.45);
+  &.is-open .layer-dd__chevron {
+    transform: rotate(180deg);
   }
 }
 
-.layer-dd__panel {
-  margin-top: 6px;
-  min-width: 160px;
-  padding: 8px 10px;
-  border-radius: 4px;
+.layer-dd__trigger {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 6px;
   border: 1px solid $border-color;
-  background: rgba(6, 22, 48, 0.96);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  background: rgba(6, 22, 48, 0.94);
+  backdrop-filter: blur(8px);
+  color: $text-primary;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+
+  &:hover {
+    border-color: rgba(0, 240, 255, 0.45);
+    color: $primary;
+  }
+}
+
+.layer-dd__trigger-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.layer-dd__chevron {
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: transform 0.2s ease;
+}
+
+.layer-dd__panel {
+  margin-top: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid $border-color;
+  background: rgba(6, 22, 48, 0.97);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .layer-dd__row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 12px;
   color: $text-secondary;
   cursor: pointer;
-  padding: 6px 0;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 240, 255, 0.08);
 
-  &:first-child { padding-top: 2px; }
-  &:last-child { padding-bottom: 2px; }
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 4px;
+  }
+  &:first-child {
+    padding-top: 4px;
+  }
 
-  input {
+  .layer-dd__check {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
     accent-color: $primary;
+    cursor: pointer;
   }
 }
 
@@ -432,42 +490,86 @@ onBeforeUnmount(() => {
 }
 
 .map-legend {
-  position: absolute;
-  bottom: 16px;
-  left: 16px;
-  background: rgba(6, 22, 48, 0.9);
+  width: 200px;
+  margin: 0;
+  padding: 12px 14px;
+  background: rgba(6, 22, 48, 0.94);
+  backdrop-filter: blur(8px);
   border: 1px solid $border-color;
-  border-radius: 4px;
-  padding: 10px 14px;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.map-legend__head {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 240, 255, 0.18);
+}
+
+.map-legend__title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: $primary;
+  letter-spacing: 0.04em;
+}
+
+.map-legend__sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: $text-muted;
+}
+
+.map-legend__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
-  gap: 16px;
-  z-index: 20;
+  flex-direction: column;
+  gap: 10px;
+}
 
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: $text-secondary;
+.map-legend__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
+.map-legend__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.14),
+    0 0 12px rgba(0, 0, 0, 0.45);
 
-      &.online {
-        background: $primary;
-        box-shadow: 0 0 6px $primary;
-      }
-      &.warning {
-        background: $warning;
-        box-shadow: 0 0 6px $warning;
-      }
-      &.danger {
-        background: $danger;
-        box-shadow: 0 0 6px $danger;
-      }
-    }
+  &--online {
+    background: $primary;
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.14),
+      0 0 10px rgba(0, 240, 255, 0.55);
   }
+
+  &--warning {
+    background: $warning;
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.14),
+      0 0 10px rgba(255, 156, 0, 0.45);
+  }
+
+  &--danger {
+    background: $danger;
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.14),
+      0 0 10px rgba(255, 77, 79, 0.45);
+  }
+}
+
+.map-legend__label {
+  font-size: 13px;
+  color: $text-secondary;
 }
 </style>

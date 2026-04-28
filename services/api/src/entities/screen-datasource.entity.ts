@@ -1,3 +1,6 @@
+/**
+ * 大屏数据源配置：类型枚举 + 自由 JSON `config`（URL、topic、鉴权参数等由前端约定）。
+ */
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm'
 
 export type DatasourceTypeValue =

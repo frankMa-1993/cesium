@@ -1,3 +1,6 @@
+/**
+ * 角色实体：业务侧角色编码与名称，通过中间表关联权限与用户。
+ */
 import {
   Column,
   Entity,
@@ -13,10 +16,10 @@ export class RoleEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', unique: true })
   code: string
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string
 
   @ManyToMany(() => PermissionEntity, { eager: false })

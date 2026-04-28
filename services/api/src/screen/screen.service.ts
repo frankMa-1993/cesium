@@ -1,3 +1,6 @@
+/**
+ * 大屏数据源持久化：列表按更新时间倒序；更新时自动刷新 `updatedAt`。
+ */
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'

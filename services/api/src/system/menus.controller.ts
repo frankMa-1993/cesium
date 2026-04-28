@@ -1,3 +1,7 @@
+/**
+ * 系统菜单：后端静态配置 + 按当前用户 permissions 过滤，返回前端侧栏可用路由。
+ * 菜单项上的 `perm` 表示至少需要该读权限才显示对应模块入口。
+ */
 import { Controller, Get, Req, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import type { Request } from 'express'

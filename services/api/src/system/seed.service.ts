@@ -1,6 +1,11 @@
+/**
+ * 启动种子数据：`onModuleInit` 在空库时创建默认部门、权限、超级管理员角色、admin 账号及演示字典。
+ *
+ * 生产环境务必修改默认密码；若库中已有用户则跳过用户种子，已有字典类型则跳过字典种子。
+ */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
-import * as bcrypt from 'bcrypt'
+import { hash as bcryptHash } from '../common/bcrypt-promise'
 import { DataSource } from 'typeorm'
 import { PermissionEntity } from '../entities/permission.entity'
 import { RoleEntity } from '../entities/role.entity'
@@ -57,7 +62,7 @@ export class SeedService implements OnModuleInit {
         permissions: savedPerms,
       }),
     )
-    const hash = await bcrypt.hash('Admin@123', 10)
+    const hash = await bcryptHash('Admin@123', 10)
     await users.save(
       users.create({
         username: 'admin',

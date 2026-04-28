@@ -1,3 +1,6 @@
+/**
+ * 大屏数据源 CRUD：`config` 为 JSON，具体消费逻辑由前端或其它服务解析。
+ */
 import {
   Body,
   Controller,

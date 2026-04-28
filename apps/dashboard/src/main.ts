@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
+import { cesiumPlugin } from '@cesium-eco/core'
 import App from './App.vue'
 import { router, pinia } from '@cesium-eco/app'
-import { cesiumPlugin } from '@cesium-eco/core'
 import './styles/index.scss'
 
 const app = createApp(App)

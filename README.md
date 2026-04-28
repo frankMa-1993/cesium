@@ -1,144 +1,170 @@
-# 🌍 全域生态环境监测大屏
+# 全域生态环境监测大屏
 
-基于 **Vue 3 + Vite + Cesium** 构建的 1920×1080 大屏监测可视化项目，支持天地图底图、200+ 实时监测点 billboard 渲染、1s 数据轮询与自适应布局。
+基于 **Vue 3 + Vite + TypeScript + Cesium** 的全域生态环境监测可视化：天地图 WMTS 影像与注记底图、监测点 Billboard、开发阶段 `/api/*` Mock，以及主屏地图中的 **Cesium 水面 Primitive**（PolygonGeometry + 内置 Water 材质）。详细参数见仓库根目录 [`水域.md`](./水域.md)。
+
+本仓库为 **pnpm Monorepo**（`apps/`、`packages/`、`services/`），推荐使用 **`apps/dashboard`** 作为大屏生产入口；仓库根目录仍保留一套扁平 **`src/`** 结构，可通过根目录 `pnpm dev` 单独启动，便于对照或迁移。
 
 ---
 
-## 📁 项目结构
+## 仓库结构（概要）
 
 ```
 cesium/
-├── index.html                  # 入口 HTML
-├── vite.config.js              # Vite 配置（Cesium / Mock）
-├── package.json    
-├── .env                        # 环境变量（天地图 Token）
-├── .env.development
-├── src/
-│   ├── main.js                 # 应用入口
-│   ├── App.vue                 # 根组件
-│   ├── router/
-│   │   └── index.js            # 路由配置
-│   ├── styles/
-│   │   ├── vars.scss           # Sass 变量
-│   │   └── index.scss          # 全局样式
-│   ├── api/
-│   │   └── index.js            # Axios 封装 + API 方法
-│   ├── utils/
-│   │   ├── cesium-init.js      # Viewer 初始化、图层管理、相机飞行
-│   │   └── cesium-water.js     # 水面 Primitive（Water 材质）
-│   ├── components/
-│   │   ├── MapViewer.vue       # Cesium 地图容器（含气泡、图例）
-│   │   ├── StatCard.vue        # 统计卡片
-│   │   └── TrendChart.vue      # SVG 折线图
-│   ├── views/
-│   │   └── Dashboard.vue       # 主大屏页面
-│   └── mock/
-│       ├── index.js            # Mock 服务聚合入口
-│       ├── overview.js         # 设备概览数据
-│       ├── alerts.js           # 告警列表数据
-│       ├── trend.js            # 趋势图数据
-│       └── points.js           # 200 个监测点 GeoJSON
-└── public/
-    └── favicon.svg
+├── apps/
+│   ├── dashboard/          # 大屏应用入口（推荐）
+│   └── admin/              # 管理后台（Element Plus）
+├── packages/
+│   ├── app/                # 大屏页面、路由、Pinia（如 Dashboard.vue）
+│   ├── core/               # Cesium：Viewer、天地图/高德图层、相机、水面、点位插件
+│   ├── ui/                 # StatCard、TrendChart、MapViewer 等
+│   ├── api/                # Axios 封装 + Mock 数据（供 Vite 插件拦截）
+│   ├── shared/             # 样式变量与共享类型
+│   └── config/             # Vite 共享配置
+├── services/api/           # NestJS 后端（JWT/RBAC，与大屏/后台可选对接）
+├── deploy/                 # docker-compose、k8s/monitoring 示例
+├── src/                    # 遗留扁平前端（根目录 vite 入口，逻辑与 packages 类似）
+├── vite.config.js          # 根目录 Vite（指向 ./src）
+├── turbo.json              # Turborepo 任务与环境变量白名单
+├── VERSIONING.md             # Changesets 与语义化版本说明
+└── 水域.md                   # 水面 Primitive 参数说明
 ```
 
 ---
 
-## 🚀 本地启动
+## 环境要求
+
+- **Node.js**（建议 LTS）
+- **pnpm**（workspace 与脚本均以 pnpm 为准）
+
+---
+
+## 本地启动（推荐：大屏）
 
 ### 1. 安装依赖
 
+在仓库根目录执行：
+
 ```bash
-npm install
+pnpm install
 ```
 
 ### 2. 配置天地图 Token
 
-复制 `.env.development` 中的变量，将 `your_tianditu_token_here` 替换为你在 [天地图官网](https://www.tianditu.gov.cn/) 申请的真实 Key：
+在 **`apps/dashboard`**（或根目录遗留入口）对应的环境文件中设置：
 
 ```bash
-VITE_TIANDITU_TOKEN=你的真实Token
+VITE_TIANDITU_TOKEN=你在天地图申请的 Key
 ```
 
-> 若无 Token，项目仍可启动，但天地图底图可能无法正常加载（显示为空白或 401）。
+申请地址：[天地图开放平台](https://www.tianditu.gov.cn/)。未配置时仍可启动，但底图请求可能失败。
 
 ### 3. 启动开发服务器
 
 ```bash
-npm run dev
+pnpm --filter dashboard dev
 ```
 
-服务默认运行在 `http://localhost:3000`，浏览器会自动打开。
+默认 **`http://localhost:3000`**，浏览器可自动打开。
 
-Mock 服务由 `src/mock/vite-plugin-mock.js` 在开发阶段自动拦截 `/api/*` 请求，无需额外启动后端。所有 mock 规则统一在 `src/mock/index.js` 中聚合导出。
+开发环境下 **`apps/dashboard`** 通过 `src/mock/vite-plugin-mock.ts` 拦截 **`/api/*`**，数据定义在 **`packages/api/src/mock/`**，无需单独启后端。
 
 ---
 
-## 📦 打包构建
+## 其他常用脚本（根目录 `package.json`）
 
-```bash
-npm run build
-```
+| 命令 | 说明 |
+|------|------|
+| `pnpm dev` | 使用根目录 **`vite.config.js`**，入口为 **`src/`**（遗留扁平工程） |
+| `pnpm --filter dashboard dev` | 大屏 Monorepo 入口（**推荐**） |
+| `pnpm dev:api` | 启动 Nest **`services/api`** |
+| `pnpm dev:admin` | 启动 **`apps/admin`** 管理端 |
+| `pnpm build` | 根目录工程构建（对应 **`src/`**） |
+| `pnpm --filter dashboard build` | 构建 **`apps/dashboard`** |
+| `pnpm preview` | 预览根目录 **`dist/`** |
+| `pnpm test:unit` / `pnpm test:e2e` | 单元测试 / Cypress E2e（以根脚本为准时读取根配置） |
 
-构建产物输出到 `dist/` 目录。vite-plugin-cesium 会自动将 Cesium 静态资源（WebWorker、wasm、Assets）拷贝到输出目录并修正 baseUrl。
-
-```bash
-npm run preview
-```
-
-预览生产构建结果。
+后端与数据库可参考 **`deploy/docker-compose.yml`** 启动 PostgreSQL / Redis，再配置 **`DATABASE_URL`**、**`REDIS_URL`** 等（详见 **`turbo.json`** 中的 `globalEnv`）。
 
 ---
 
-## 🔧 关键技术点
+## 打包与预览
+
+```bash
+pnpm --filter dashboard build
+pnpm --filter dashboard preview
+```
+
+根目录遗留工程：
+
+```bash
+pnpm build
+pnpm preview
+```
+
+构建时 **`vite-plugin-cesium`** 会将 Cesium 静态资源拷贝到输出目录并处理 **`baseUrl`**。
+
+---
+
+## 技术栈摘要
 
 | 模块 | 说明 |
 |------|------|
-| **Vue 3** | Composition API + `<script setup>` |
-| **Vite** | 极速 HMR，ESM 原生支持 |
-| **Cesium 1.100** | 3D 地球引擎，vite-plugin-cesium 自动处理静态资源 |
-| **天地图 WMTS** | 影像底图 + 注记叠加层，Token 通过环境变量注入 |
-| **自定义 Vite Mock 插件** | 开发阶段拦截 `/api/*`，返回 RESTful JSON |
-| **自适应布局** | 1920×1080 设计稿基准，flex + grid 实现，小屏自动堆叠 |
-| **1s 轮询** | `setInterval` 统一拉取 overview / alerts / trend |
-| **Billboard** | 200 个监测点使用 Canvas 动态生成图标，支持点击弹窗 |
+| Vue 3 | Composition API、`<script setup>` |
+| TypeScript | Monorepo 内 packages/apps 广泛使用 |
+| Vite 8 | ESM、HMR |
+| Cesium 1.100 | `vite-plugin-cesium` 处理 Workers / WASM / Assets |
+| 天地图 WMTS | 影像 `img_w` + 注记 `cia_w`，Token 经 **`VITE_TIANDITU_TOKEN`** 注入（dashboard 在 `define` 中为 **`__TIANDITU_TOKEN__**） |
+| 高德卫星（可选） | `packages/core` 中 **`createGaodeSatelliteWmtsProvider`**，可与底图叠加并调节 **`ImageryLayer.alpha`** |
+| Mock | 开发期中间件拦截 **`/api/*`**，聚合自 **`@cesium-eco/api`** |
+| 布局 | 1920×1080 基准；大屏样式见 **`packages/app`** / **`packages/shared`** |
 
 ---
 
-## 🌐 接口列表
+## HTTP 接口（Mock，前缀 `/api`）
 
-所有接口前缀为 `/api`，均由 Mock 拦截：
-
-| 接口 | 方法 | 描述 |
+| 路径 | 方法 | 说明 |
 |------|------|------|
-| `/api/overview` | GET | 设备在线数、告警数、任务进度 |
-| `/api/alerts` | GET | 实时告警列表（8 条） |
-| `/api/trend` | GET | 24 小时在线/告警/数据量趋势 |
-| `/api/points` | GET | 200 个随机 GeoJSON 监测点 |
-| `/api/points/:id` | GET | 单个监测点实时详情（含值波动） |
+| `/api/overview` | GET | 设备概览 |
+| `/api/alerts` | GET | 告警列表 |
+| `/api/trend` | GET | 趋势数据 |
+| `/api/points` | GET | 监测点 GeoJSON |
+| `/api/points/:id` | GET | 单点详情 |
+
+对接真实后端时，请配置 **`VITE_API_BASE`**（及所需认证逻辑），并关闭或绕过 Mock 插件。
 
 ---
 
-## 📝 自定义配置
+## 自定义说明
 
-### 修改轮询间隔
+### 轮询间隔
 
-在 `src/views/Dashboard.vue` 中调整：
+Monorepo：**`packages/app/src/views/Dashboard.vue`** 中的 **`setInterval`**。  
+遗留：**`src/views/Dashboard.vue`**。
 
-```js
-pollTimer = setInterval(loadData, 1000) // 单位 ms
-```
+### 监测点数量与 Mock 数据
 
-### 修改监测点数量
+- Monorepo：**`packages/api/src/mock/points.ts`**（当前为示例数量的静态点位，可按需扩展或改为随机生成）。
+- 遗留：**`src/mock/points.js`** 中 **`generateGeoJSON(数量)`**。
 
-在 `src/mock/points.js` 中调整 `generateGeoJSON(200)` 的参数。
+### 底图与图层（天地图 / 高德）
 
-### 替换底图服务
+- **推荐维护位置（Monorepo）**：**`packages/core/src/layers.ts`** 中的 **`addTiandituLayers`**、**`createGaodeSatelliteWmtsProvider`**；天地图 Token 与 Viewer 侧常量见 **`packages/core/src/viewer.ts`**（构建时由 **`apps/dashboard/vite.config.ts`** 注入 **`__TIANDITU_TOKEN__`**）。
+- **遗留入口**：**`src/utils/cesium-init.js`** 中的 **`addTiandituLayers`** 与同文件内的 **`createGaodeSatelliteWmtsProvider`**。
 
-在 `src/utils/cesium-init.js` 的 `addTiandituLayers` 中替换 `WebMapTileServiceImageryProvider` 的 URL 与参数。
+替换其他 **`WebMapTileServiceImageryProvider`** 时，请同步修改 **`url`**、**`layer`**、**`tileMatrixSetID`**、**`format`**、**`subdomains`** 等与服务商文档一致。
+
+### 水面与地图 UI
+
+逻辑与参数见 **`水域.md`**；代码主要在 **`packages/core/src/water.ts`** 与 **`packages/ui/src/components/MapViewer.vue`**（含图层勾选与销毁清理）。
 
 ---
 
-## 📄 许可证
+## 版本与协作
+
+发布与 Changesets 流程见 **[VERSIONING.md](./VERSIONING.md)**。
+
+---
+
+## 许可证
 
 MIT

@@ -1,3 +1,6 @@
+/**
+ * 审计模块：登录日志查询（与 `AuthService.audit` 写入同一张表）。
+ */
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { LoginLogEntity } from '../entities/login-log.entity'

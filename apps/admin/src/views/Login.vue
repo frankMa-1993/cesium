@@ -163,8 +163,8 @@ onMounted(() => {
   align-items: center;
 }
 .cap-img {
-  width: 120px;
-  height: 40px;
+  width: auto;
+  height: auto;
   cursor: pointer;
   overflow: hidden;
   border-radius: 4px;

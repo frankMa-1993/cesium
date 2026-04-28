@@ -1,3 +1,6 @@
+/**
+ * 字典类型：业务唯一 `code`（如生态指标），下挂多个版本快照。
+ */
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm'
 import { DictSnapshotEntity } from './dict-snapshot.entity'
 
@@ -6,10 +9,10 @@ export class DictTypeEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', unique: true })
   code: string
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string
 
   @OneToMany(() => DictSnapshotEntity, (s) => s.dictType)

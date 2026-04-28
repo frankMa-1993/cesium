@@ -1,3 +1,6 @@
+/**
+ * 用户实体：账号基本信息、部门、多对多角色、登录安全字段（失败次数、锁定截止时间、最后登录）。
+ */
 import {
   Column,
   Entity,
@@ -17,19 +20,20 @@ export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', unique: true })
   username: string
 
-  @Column({ nullable: true, unique: true })
+  @Column({ type: 'varchar', nullable: true, unique: true })
   phone: string | null
 
-  @Column({ name: 'password_hash' })
+  /** bcrypt 哈希，永不明文存储 */
+  @Column({ name: 'password_hash', type: 'varchar' })
   passwordHash: string
 
-  @Column({ name: 'display_name' })
+  @Column({ name: 'display_name', type: 'varchar' })
   displayName: string
 
-  @Column({ name: 'dept_id', nullable: true })
+  @Column({ name: 'dept_id', type: 'varchar', nullable: true })
   deptId: string | null
 
   @ManyToOne(() => DeptEntity, { nullable: true })
@@ -39,10 +43,11 @@ export class UserEntity {
   @Column({ type: 'varchar', length: 16, default: 'enabled' })
   status: UserStatusValue
 
+  /** 密码错误累计达阈值时设置，过期前禁止登录 */
   @Column({ name: 'locked_until', type: 'datetime', nullable: true })
   lockedUntil: Date | null
 
-  @Column({ name: 'failed_attempts', default: 0 })
+  @Column({ name: 'failed_attempts', type: 'integer', default: 0 })
   failedAttempts: number
 
   @Column({ name: 'last_login_at', type: 'datetime', nullable: true })

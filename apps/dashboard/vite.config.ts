@@ -5,7 +5,8 @@ import mockPlugin from './src/mock/vite-plugin-mock'
 import { resolve } from 'path'
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+  const repoRoot = resolve(__dirname, '../..')
+  const env = { ...loadEnv(mode, repoRoot, ''), ...loadEnv(mode, process.cwd(), '') }
 
   return {
     base: './',
@@ -19,6 +20,10 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),
+        '@cesium-eco/core': resolve(__dirname, '../../packages/core/src/index.ts'),
+        /* 与 core 一致：开发时使用源码，避免 dist 滞后导致 Dashboard 等页面样式未更新 */
+        '@cesium-eco/app': resolve(__dirname, '../../packages/app/src/index.ts'),
+        '@cesium-eco/ui': resolve(__dirname, '../../packages/ui/src/index.ts'),
       },
     },
     css: {

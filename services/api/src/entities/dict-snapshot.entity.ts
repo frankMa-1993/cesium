@@ -1,3 +1,6 @@
+/**
+ * 字典快照：同一类型下单调递增 `version`，`snapshot` 为条目数组 JSON。
+ */
 import {
   Column,
   Entity,
@@ -12,7 +15,7 @@ export class DictSnapshotEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  @Column({ name: 'dict_type_id' })
+  @Column({ name: 'dict_type_id', type: 'varchar' })
   dictTypeId: string
 
   @ManyToOne(() => DictTypeEntity, (t) => t.snapshots, { onDelete: 'CASCADE' })
@@ -28,6 +31,6 @@ export class DictSnapshotEntity {
   @Column({ name: 'created_at', type: 'datetime' })
   createdAt: Date
 
-  @Column({ name: 'created_by', nullable: true })
+  @Column({ name: 'created_by', type: 'varchar', nullable: true })
   createdBy: string | null
 }

@@ -1,3 +1,6 @@
+/**
+ * 角色只读接口：复用 `user:read` 权限，避免未授权用户枚举角色。
+ */
 import { Controller, Get, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import { InjectRepository } from '@nestjs/typeorm'

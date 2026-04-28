@@ -1,6 +1,9 @@
+/**
+ * 用户领域服务：查询构建、批量更新、角色多对多维护、导出原始行。
+ */
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import * as bcrypt from 'bcrypt'
+import { hash as bcryptHash } from '../common/bcrypt-promise'
 import { In, Repository } from 'typeorm'
 import { UserEntity } from '../entities/user.entity'
 import { RoleEntity } from '../entities/role.entity'
@@ -16,6 +19,9 @@ export class UsersService {
     private readonly config: ConfigService,
   ) {}
 
+  /**
+   * 分页查询用户，预加载部门与角色；关键字匹配用户名、显示名、手机号。
+   */
   async list(q: {
     page: number
     pageSize: number
@@ -62,11 +68,12 @@ export class UsersService {
   async resetPassword(ids: string[]) {
     const rounds = this.config.get<number>('bcryptSaltRounds') ?? 10
     const temp = `Reset@${Math.random().toString(36).slice(2, 10)}`
-    const hash = await bcrypt.hash(temp, rounds)
+    const hash = await bcryptHash(temp, rounds)
     await this.users.update({ id: In(ids) }, { passwordHash: hash })
     return { updated: ids.length, devTempPassword: process.env.NODE_ENV !== 'production' ? temp : undefined }
   }
 
+  /** 以给定 roleIds 完整替换用户的角色集合 */
   async assignRoles(userId: string, roleIds: string[]) {
     const user = await this.users.findOne({
       where: { id: userId },

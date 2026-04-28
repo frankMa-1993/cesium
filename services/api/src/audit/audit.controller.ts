@@ -1,3 +1,6 @@
+/**
+ * 审计 REST API：分页拉取登录成功/失败记录（含 IP、UA、Geo、失败原因等）。
+ */
 import { Controller, Get, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import { AuditService } from './audit.service'
