@@ -1,0 +1,10 @@
+{
+  "title": "Eco Admin API (sample)",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Requests / s",
+      "targets": [{ "expr": "rate(process_cpu_seconds_total[1m])" }]
+    }
+  ]
+}

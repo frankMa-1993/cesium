@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# API 本地 SQLite / 数据目录
+services/api/data/
+*.sqlite

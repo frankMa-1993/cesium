@@ -1,0 +1,9 @@
+# 合并到 Prometheus 配置或 ConfigMap。
+groups:
+  - name: eco-admin
+    rules:
+      - alert: AdminApiErrors
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.2
+        for: 10m
+        labels:
+          severity: warning

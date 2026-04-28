@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eco-admin-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: eco-admin-api
+  template:
+    metadata:
+      labels:
+        app: eco-admin-api
+    spec:
+      containers:
+        - name: api
+          image: your-registry/eco-admin-api:latest
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - secretRef:
+                name: eco-admin-env
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eco-admin-api
+spec:
+  selector:
+    app: eco-admin-api
+  ports:
+    - port: 4000
+      targetPort: 4000

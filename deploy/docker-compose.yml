@@ -1,0 +1,21 @@
+# PostgreSQL + Redis — 本地或预发与 services/api 配套使用
+# 启动后设置：export DATABASE_URL=postgres://eco:eco@localhost:5432/eco_admin REDIS_URL=redis://127.0.0.1:6379
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: eco
+      POSTGRES_PASSWORD: eco
+      POSTGRES_DB: eco_admin
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+
+volumes:
+  pgdata: {}

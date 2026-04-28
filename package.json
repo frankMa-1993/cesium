@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "pnpm --filter @cesium-eco/api-server dev",
+    "dev:admin": "pnpm --filter @cesium-eco/admin dev",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "test:unit": "vitest run",

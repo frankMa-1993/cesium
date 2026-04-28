@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install
+        run: pnpm install --frozen-lockfile=false
+      - name: Build shared
+        run: pnpm --filter @cesium-eco/shared run build
+      - name: Lint typecheck API
+        run: pnpm --filter @cesium-eco/api-server run typecheck
+      - name: Test API
+        run: pnpm --filter @cesium-eco/api-server exec jest --coverage --passWithNoTests
+      - name: Build Admin
+        run: pnpm --filter @cesium-eco/admin run build
+      - name: Test Admin
+        run: pnpm --filter @cesium-eco/admin exec vitest run
