@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref ,reactive, computed} from 'vue'
 import { http } from '@/utils/request'
 
 const items = ref<unknown[]>([])
@@ -51,6 +51,8 @@ async function load() {
   items.value = data.items
 }
 
+
+// 输出：computed run → 2
 onMounted(() => void load())
 </script>
 

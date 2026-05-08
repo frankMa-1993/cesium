@@ -200,10 +200,12 @@ Vercel 为开源项目和个人项目提供免费的 Remote Cache 额度。
 
 在 Vercel Dashboard 中创建 Team 或 Project，获取 Token 和 Team ID，然后在仓库的 **Settings > Secrets and variables > Actions** 中添加：
 
-| Secret / Variable | 说明 |
-|---|---|
-| `TURBO_TOKEN` | Vercel 个人访问令牌（Scope 需包含 `read/write`） |
-| `TURBO_TEAM` | Vercel Team 的 slug（个人用户可填用户名） |
+
+| Secret / Variable | 说明                                    |
+| ----------------- | ------------------------------------- |
+| `TURBO_TOKEN`     | Vercel 个人访问令牌（Scope 需包含 `read/write`） |
+| `TURBO_TEAM`      | Vercel Team 的 slug（个人用户可填用户名）         |
+
 
 #### 2. 在 CI 中启用
 
@@ -264,9 +266,9 @@ export TURBO_TEAM=cesium-eco
 1. 在 Vercel Dashboard 导入本仓库
 2. 设置 Framework Preset 为 `Vite`
 3. 配置 Build Command：
-   ```bash
+  ```bash
    cd ../.. && pnpm install --frozen-lockfile && pnpm build --filter=dashboard
-   ```
+  ```
 4. 配置 Output Directory：`apps/dashboard/dist`
 5. 添加环境变量：`VITE_TIANDITU_TOKEN`
 
@@ -326,21 +328,25 @@ jobs:
 
 ### 部署环境划分
 
-| 环境 | 分支 | 触发方式 | 用途 |
-|---|---|---|---|
-| 开发环境 | `develop` | 合并自动部署 | 功能验证、内部测试 |
-| 预发布环境 | `release/*` | 手动触发 | UAT、回归测试 |
-| 生产环境 | `main` | Release 合并后自动部署 | 正式对外服务 |
+
+| 环境    | 分支          | 触发方式            | 用途        |
+| ----- | ----------- | --------------- | --------- |
+| 开发环境  | `develop`   | 合并自动部署          | 功能验证、内部测试 |
+| 预发布环境 | `release/*` | 手动触发            | UAT、回归测试  |
+| 生产环境  | `main`      | Release 合并后自动部署 | 正式对外服务    |
+
 
 ### 环境变量管理
 
 不同环境通过 `.env` 文件或 CI/CD Secrets 注入：
 
-| 变量 | 开发 | 预发布 | 生产 |
-|---|---|---|---|
-| `VITE_API_BASE` | `/api` (Mock) | `https://staging-api.example.com` | `https://api.example.com` |
-| `VITE_TIANDITU_TOKEN` | 开发 Token | 预发布 Token | 生产 Token |
-| `NODE_ENV` | `development` | `production` | `production` |
+
+| 变量                    | 开发            | 预发布                               | 生产                        |
+| --------------------- | ------------- | --------------------------------- | ------------------------- |
+| `VITE_API_BASE`       | `/api` (Mock) | `https://staging-api.example.com` | `https://api.example.com` |
+| `VITE_TIANDITU_TOKEN` | 开发 Token      | 预发布 Token                         | 生产 Token                  |
+| `NODE_ENV`            | `development` | `production`                      | `production`              |
+
 
 ---
 
@@ -349,3 +355,4 @@ jobs:
 - [VERSIONING.md](./VERSIONING.md) — 版本管理与 Changesets 工作流
 - [Turborepo 官方文档](https://turbo.build/repo/docs)
 - [Changesets 官方文档](https://github.com/changesets/changesets)
+
