@@ -23,6 +23,7 @@ const DEFAULT_PERMS: { code: string; name: string }[] = [
   { code: 'audit:read', name: '审计-查看' },
   { code: 'screen:read', name: '大屏-查看' },
   { code: 'screen:write', name: '大屏-维护' },
+  { code: 'monitor:read', name: '监控-查看' },
 ]
 
 @Injectable()
@@ -36,7 +37,36 @@ export class SeedService implements OnModuleInit {
 
   async onModuleInit() {
     await this.seedAdminUser()
+    await this.ensureBuiltinPermissions()
     await this.seedDemoDict()
+  }
+
+  /**
+   * 将 DEFAULT_PERMS 中新增项写入库并挂到 `super` 角色，便于已有环境升级后自动获得新菜单权限。
+   */
+  private async ensureBuiltinPermissions() {
+    const permRepo = this.ds.getRepository(PermissionEntity)
+    const roleRepo = this.ds.getRepository(RoleEntity)
+    const superRole = await roleRepo.findOne({
+      where: { code: 'super' },
+      relations: ['permissions'],
+    })
+    if (!superRole)
+      return
+    let changed = false
+    for (const p of DEFAULT_PERMS) {
+      let perm = await permRepo.findOne({ where: { code: p.code } })
+      if (!perm) {
+        perm = await permRepo.save(permRepo.create({ code: p.code, name: p.name }))
+        this.log.log(`Added permission ${p.code}`)
+      }
+      if (!superRole.permissions.some((x) => x.code === p.code)) {
+        superRole.permissions.push(perm)
+        changed = true
+      }
+    }
+    if (changed)
+      await roleRepo.save(superRole)
   }
 
   private async seedAdminUser() {

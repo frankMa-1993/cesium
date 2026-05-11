@@ -168,3 +168,6 @@ Monorepo：**`packages/app/src/views/Dashboard.vue`** 中的 **`setInterval`**�
 ## 许可证
 
 MIT
+
+## 注意：
+ 本项目后面将不再要求使用 ts 去代码迭代

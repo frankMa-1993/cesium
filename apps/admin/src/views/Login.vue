@@ -56,6 +56,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
+import type { AxiosError } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { http } from '@/utils/request'
 
@@ -99,9 +100,27 @@ const rules: FormRules = {
 }
 
 async function loadCaptcha() {
-  const { data } = await http.get<{ id: string; svg: string }>('/auth/captcha')
-  captchaId.value = data.id
-  captchaSvg.value = data.svg
+  try {
+    const { data } = await http.get<{ id: string; svg: string }>('/auth/captcha')
+    if (!data?.id || typeof data.svg !== 'string') {
+      ElMessage.warning('验证码数据异常，请点击图片刷新')
+      return
+    }
+    captchaId.value = data.id
+    captchaSvg.value = data.svg
+  }
+  catch (e: unknown) {
+    captchaId.value = ''
+    captchaSvg.value = ''
+    const err = e as AxiosError<{ message?: string }>
+    const st = err.response?.status
+    let msg = '验证码加载失败，请点击图片刷新重试'
+    if (st === 502 || st === 503 || st === 504)
+      msg = '后端暂不可用（网关错误）。请确认已启动 API（如根目录执行 pnpm dev:api），或检查反向代理 upstream。'
+    else if (!err.response)
+      msg = '无法连接后端，请检查 API 地址、网络或本机代理/VPN。'
+    ElMessage.warning(msg)
+  }
 }
 
 async function submit() {

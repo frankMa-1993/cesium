@@ -17,6 +17,7 @@ import { DictModule } from './dict/dict.module'
 import { AuditModule } from './audit/audit.module'
 import { ScreenModule } from './screen/screen.module'
 import { SystemModule } from './system/system.module'
+import { MonitorModule } from './monitor/monitor.module'
 import { RolesModule } from './roles/roles.module'
 import { PrometheusModule } from '@willsoto/nestjs-prometheus'
 import { HealthController } from './health.controller'
@@ -64,6 +65,7 @@ import { HealthController } from './health.controller'
     AuditModule,
     ScreenModule,
     SystemModule,
+    MonitorModule,
     RolesModule,
   ],
   controllers: [HealthController],

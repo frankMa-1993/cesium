@@ -4,11 +4,23 @@ import { useAuthStore } from '@/stores/auth'
 import { AuthErrorCode } from '@cesium-eco/shared'
 import router from '@/router'
 
-const baseURL =
-  typeof import.meta.env.VITE_ADMIN_API_BASE === 'string' &&
-  import.meta.env.VITE_ADMIN_API_BASE
-    ? import.meta.env.VITE_ADMIN_API_BASE + '/api/v1'
-    : '/api/v1'
+/** 绝对地址时只取 origin，避免 `.../api/v1` 与追加路径重复成 `/api/v1/api/v1` */
+function resolveAdminApiBaseUrl(): string {
+  const raw = import.meta.env.VITE_ADMIN_API_BASE
+  if (typeof raw !== 'string' || !raw.trim())
+    return '/api/v1'
+  const s = raw.trim()
+  if (!/^https?:\/\//i.test(s))
+    return '/api/v1'
+  try {
+    return `${new URL(s).origin}/api/v1`
+  }
+  catch {
+    return '/api/v1'
+  }
+}
+
+const baseURL = resolveAdminApiBaseUrl()
 
 export const http = axios.create({
   baseURL,
@@ -76,9 +88,11 @@ http.interceptors.response.use(
     }
     const reqUrl = err.config?.url ?? ''
     if (
+      err.config?.skipGlobalError !== true &&
       !reqUrl.includes('auth/login') &&
       !reqUrl.includes('auth/forgot') &&
-      !reqUrl.includes('auth/profile')
+      !reqUrl.includes('auth/profile') &&
+      !reqUrl.includes('auth/captcha')
     )
       ElMessage.error(getMessage(err))
 

@@ -46,6 +46,11 @@ const router = createRouter({
           name: 'screen',
           component: () => import('@/views/Screen.vue'),
         },
+        {
+          path: 'monitor/video',
+          name: 'videoMonitor',
+          component: () => import('@/views/VideoMonitor.vue'),
+        },
       ],
     },
   ],

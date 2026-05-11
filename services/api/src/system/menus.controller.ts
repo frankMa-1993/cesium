@@ -33,6 +33,12 @@ const FULL: (MenuItem & { perm?: string })[] = [
     title: '大屏数据源',
     perm: 'screen:read',
   },
+  {
+    path: '/monitor/video',
+    name: 'videoMonitor',
+    title: '视频监控',
+    perm: 'monitor:read',
+  },
 ]
 
 @ApiTags('system')
