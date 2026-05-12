@@ -17,24 +17,22 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted, h } from 'vue'
 import { ElButton, ElNotification } from 'element-plus'
 import { http } from '@/utils/request'
-import VideoStreamCell, {
-  type VideoPresetSlot,
-} from '@/components/video/VideoStreamCell.vue'
+import VideoStreamCell from '@/components/video/VideoStreamCell.vue'
 
-const cells = ref<(VideoPresetSlot | null)[]>([null, null, null, null])
+const cells = ref([null, null, null, null])
 const apiError = ref('')
 
-function cellKey(index: number) {
+function cellKey(index) {
   const p = cells.value[index]
   return `${index}-${p?.id ?? 'empty'}`
 }
 
-function notifyServiceDown(retry: () => void) {
-  let handle: { close: () => void } | undefined
+function notifyServiceDown(retry) {
+  let handle
   handle = ElNotification({
     title: '服务暂不可用',
     type: 'error',
@@ -54,31 +52,28 @@ function notifyServiceDown(retry: () => void) {
         () => '重新加载',
       ),
     ]),
-  }) as { close: () => void }
+  })
 }
 
 async function loadPresets() {
   apiError.value = ''
   try {
-    const { data } = await http.get<{ items: VideoPresetSlot[] }>(
-      '/monitor/video-presets',
-      {
-        timeout: 3000,
-        skipGlobalError: true,
-      },
-    )
+    const { data } = await http.get('/monitor/video-presets', {
+      timeout: 3000,
+      skipGlobalError: true,
+    })
     const items = data.items ?? []
     cells.value = [0, 1, 2, 3].map((i) => items[i] ?? null)
   }
   catch {
     cells.value = [null, null, null, null]
     apiError.value = '预设视频流加载失败（3 秒超时或服务器异常）。'
-    notifyServiceDown(() => void loadPresets())
+    notifyServiceDown(() => loadPresets())
   }
 }
 
 onMounted(() => {
-  void loadPresets()
+  loadPresets()
 })
 </script>
 

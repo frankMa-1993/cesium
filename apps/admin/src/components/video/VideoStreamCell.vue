@@ -9,7 +9,7 @@
         ref="videoRef"
         class="video"
         playsinline
-        @play="playing = true"
+        @play="playing = false"
         @pause="playing = false"
         @error="onVideoError"
       />
@@ -25,7 +25,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { h } from 'vue'
 import { ElButton, ElNotification } from 'element-plus'
@@ -33,30 +33,25 @@ import { VideoPlay, VideoPause, Mute, Bell, FullScreen } from '@element-plus/ico
 import flvjs from 'flv.js'
 import Hls from 'hls.js'
 
-export interface VideoPresetSlot {
-  id: string
-  title: string
-  flvUrl?: string
-  hlsUrl?: string
-  rtmpUrl?: string
-}
+const props = defineProps({
+  preset: {
+    type: Object,
+    default: null,
+  },
+})
 
-const props = defineProps<{
-  preset: VideoPresetSlot | null
-}>()
-
-const wrapRef = ref<HTMLElement | null>(null)
-const videoRef = ref<HTMLVideoElement | null>(null)
+const wrapRef = ref(null)
+const videoRef = ref(null)
 const playing = ref(false)
 const muted = ref(false)
 const activeLabel = ref('')
 
-let flvPlayer: flvjs.Player | null = null
-let hlsPlayer: Hls | null = null
+let flvPlayer = null
+let hlsPlayer = null
 let playSession = 0
 
-function notifyStreamError(message: string, retry: () => void) {
-  let handle: { close: () => void } | undefined
+function notifyStreamError(message, retry) {
+  let handle
   handle = ElNotification({
     title: '播放异常',
     type: 'error',
@@ -76,7 +71,7 @@ function notifyStreamError(message: string, retry: () => void) {
         () => '重新加载',
       ),
     ]),
-  }) as { close: () => void }
+  })
 }
 
 function destroyPlayers() {
@@ -112,7 +107,7 @@ function onOffline() {
   notifyStreamError('网络已断开，请检查连接后重试', () => reloadSlot())
 }
 
-async function tryFlv(url: string, session: number): Promise<boolean> {
+async function tryFlv(url, session) {
   const v = videoRef.value
   if (!v || !flvjs.isSupported() || session !== playSession)
     return false
@@ -125,7 +120,7 @@ async function tryFlv(url: string, session: number): Promise<boolean> {
   let playingStarted = false
   return new Promise((resolve) => {
     let done = false
-    const finish = (ok: boolean) => {
+    const finish = (ok) => {
       if (done || session !== playSession)
         return
       done = true
@@ -167,7 +162,7 @@ async function tryFlv(url: string, session: number): Promise<boolean> {
   })
 }
 
-async function tryHls(url: string, session: number): Promise<boolean> {
+async function tryHls(url, session) {
   const v = videoRef.value
   if (!v || session !== playSession)
     return false
@@ -179,7 +174,7 @@ async function tryHls(url: string, session: number): Promise<boolean> {
     let playingStarted = false
     return new Promise((resolve) => {
       let done = false
-      const finish = (ok: boolean) => {
+      const finish = (ok) => {
         if (done || session !== playSession)
           return
         done = true
@@ -221,7 +216,7 @@ async function tryHls(url: string, session: number): Promise<boolean> {
     activeLabel.value = 'HLS(原生)'
     return new Promise((resolve) => {
       let done = false
-      const finish = (ok: boolean) => {
+      const finish = (ok) => {
         if (done || session !== playSession)
           return
         done = true
@@ -248,7 +243,7 @@ async function tryHls(url: string, session: number): Promise<boolean> {
   return false
 }
 
-async function tryProtocols(session: number) {
+async function tryProtocols(session) {
   const preset = props.preset
   const v = videoRef.value
   if (!preset || !v) {
@@ -293,7 +288,7 @@ async function tryProtocols(session: number) {
 function reloadSlot() {
   playSession += 1
   const session = playSession
-  void nextTick(async () => {
+  nextTick(async () => {
     destroyPlayers()
     if (!props.preset || !videoRef.value) {
       playing.value = false
@@ -344,12 +339,12 @@ function toggleFullscreen() {
   const el = wrapRef.value
   if (!el)
     return
-  const anyEl = el as HTMLElement & { webkitRequestFullscreen?: () => void }
   if (document.fullscreenElement)
-    void document.exitFullscreen()
-  else if (el.requestFullscreen)
-    void el.requestFullscreen()
-  else anyEl.webkitRequestFullscreen?.()
+    document.exitFullscreen()
+  else if (typeof el.requestFullscreen === 'function')
+    el.requestFullscreen()
+  else if (typeof el.webkitRequestFullscreen === 'function')
+    el.webkitRequestFullscreen()
 }
 </script>
 
