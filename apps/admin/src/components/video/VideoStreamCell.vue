@@ -9,7 +9,7 @@
         ref="videoRef"
         class="video"
         playsinline
-        @play="playing = false"
+        @play="playing = true"
         @pause="playing = false"
         @error="onVideoError"
       />
@@ -117,44 +117,51 @@ async function tryFlv(url, session) {
   )
   flvPlayer = player
   player.attachMediaElement(v)
-  let playingStarted = false
+  let mediaInfoReceived = false
   return new Promise((resolve) => {
     let done = false
     const finish = (ok) => {
       if (done || session !== playSession)
         return
       done = true
-      v.removeEventListener('playing', onPlaying)
       window.clearTimeout(tid)
       if (!ok) {
         destroyPlayers()
         resolve(false)
         return
       }
-      playingStarted = true
+      try {
+        player.pause()
+      }
+      catch {
+        /* noop */
+      }
+      v.pause()
       resolve(true)
     }
-    function onPlaying() {
+    function onMediaInfo() {
+      if (done || session !== playSession)
+        return
+      mediaInfoReceived = true
       finish(true)
     }
     const tid = window.setTimeout(() => {
       if (!done && session === playSession)
         finish(false)
     }, 20_000)
+    player.on(flvjs.Events.MEDIA_INFO, onMediaInfo)
     player.on(flvjs.Events.ERROR, () => {
       if (session !== playSession || done)
         return
-      if (playingStarted) {
+      if (mediaInfoReceived) {
         notifyStreamError('FLV 码流异常或解码失败', () => reloadSlot())
       }
       else {
         finish(false)
       }
     })
-    v.addEventListener('playing', onPlaying)
     try {
       player.load()
-      void Promise.resolve(player.play()).catch(() => finish(false))
     }
     catch {
       finish(false)
@@ -169,36 +176,37 @@ async function tryHls(url, session) {
   if (Hls.isSupported()) {
     const hls = new Hls({ enableWorker: true })
     hlsPlayer = hls
-    hls.loadSource(url)
-    hls.attachMedia(v)
-    let playingStarted = false
+    let manifestParsed = false
     return new Promise((resolve) => {
       let done = false
       const finish = (ok) => {
         if (done || session !== playSession)
           return
         done = true
-        v.removeEventListener('playing', onPlaying)
         window.clearTimeout(tid)
         if (!ok) {
           destroyPlayers()
           resolve(false)
           return
         }
-        playingStarted = true
+        v.pause()
         resolve(true)
       }
-      function onPlaying() {
+      function onManifestParsed() {
+        if (done || session !== playSession)
+          return
+        manifestParsed = true
         finish(true)
       }
       const tid = window.setTimeout(() => {
         if (!done && session === playSession)
           finish(false)
       }, 20_000)
+      hls.on(Hls.Events.MANIFEST_PARSED, onManifestParsed)
       hls.on(Hls.Events.ERROR, (_e, data) => {
         if (session !== playSession || done || !data.fatal)
           return
-        if (playingStarted) {
+        if (manifestParsed) {
           notifyStreamError(`HLS 异常：${data.type} / ${data.details}`, () =>
             reloadSlot(),
           )
@@ -207,12 +215,11 @@ async function tryHls(url, session) {
           finish(false)
         }
       })
-      v.addEventListener('playing', onPlaying)
-      void v.play().catch(() => finish(false))
+      hls.loadSource(url)
+      hls.attachMedia(v)
     })
   }
   if (v.canPlayType('application/vnd.apple.mpegurl')) {
-    v.src = url
     activeLabel.value = 'HLS(原生)'
     return new Promise((resolve) => {
       let done = false
@@ -220,24 +227,25 @@ async function tryHls(url, session) {
         if (done || session !== playSession)
           return
         done = true
-        v.removeEventListener('playing', onPlaying)
+        v.removeEventListener('loadedmetadata', onMeta)
         window.clearTimeout(tid)
         if (!ok) {
           destroyPlayers()
           resolve(false)
           return
         }
+        v.pause()
         resolve(true)
       }
-      function onPlaying() {
+      function onMeta() {
         finish(true)
       }
       const tid = window.setTimeout(() => {
         if (!done && session === playSession)
           finish(false)
       }, 20_000)
-      v.addEventListener('playing', onPlaying)
-      void v.play().catch(() => finish(false))
+      v.addEventListener('loadedmetadata', onMeta)
+      v.src = url
     })
   }
   return false
@@ -297,8 +305,10 @@ function reloadSlot() {
     const el = videoRef.value
     el.muted = muted.value
     await tryProtocols(session)
-    if (videoRef.value)
-      playing.value = !videoRef.value.paused
+    if (videoRef.value) {
+      videoRef.value.pause()
+      playing.value = false
+    }
   })
 }
 
@@ -323,7 +333,7 @@ function togglePlay() {
   if (!v || !props.preset)
     return
   if (v.paused)
-    void v.play()
+    v.play()
   else v.pause()
 }
 
