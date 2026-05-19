@@ -62,11 +62,10 @@ function createFloodCanvas(riskLevel) {
  * 批量加载积水内涝点位（高性能，仅创建3种图标复用）
  * @param {Cesium.Viewer} viewer
  * @param {object} geojson - FeatureCollection
- * @param {Function} onClick - 点击回调 (properties, screenPosition)
- * @returns {{ dataSource: Cesium.CustomDataSource, handler: Cesium.ScreenSpaceEventHandler }}
+ * @returns {{ dataSource: Cesium.CustomDataSource }}
  */
-export function loadFloodPoints(viewer, geojson, onClick) {
-  const dataSource = new Cesium.CustomDataSource('floodPoints') // 
+export function loadFloodPoints(viewer, geojson) {
+  const dataSource = new Cesium.CustomDataSource('floodPoints')
 
   // 预先创建三种图标
   const icons = {
@@ -89,41 +88,25 @@ export function loadFloodPoints(viewer, geojson, onClick) {
         heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
-      properties: props,
+      properties: {
+        ...props,
+        layerType: 'floodPoint',
+      },
     })
   })
 
   viewer.dataSources.add(dataSource)
 
-  // 点击事件
-  const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas)
-  handler.setInputAction((click) => {
-    const picked = viewer.scene.pick(click.position)
-    if (
-      Cesium.defined(picked) &&
-      picked.id &&
-      picked.id.properties &&
-      picked.id.properties.id &&
-      String(picked.id.properties.id.getValue()).startsWith('FP')
-    ) {
-      const screenPos = click.position
-      onClick && onClick(picked.id.properties, screenPos) // 点击事件
-    }
-  }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
-
-  return { dataSource, handler }
+  return { dataSource }
 }
 
 /**
- * 清除积水内涝点图层并销毁事件监听
+ * 清除积水内涝点图层
  * @param {Cesium.Viewer} viewer
- * @param {{ dataSource, handler }} layer
+ * @param {{ dataSource }} layer
  */
 export function clearFloodPoints(viewer, layer) {
   if (!layer) return
-  if (layer.handler && !layer.handler.isDestroyed()) {
-    layer.handler.destroy()
-  }
   if (layer.dataSource) {
     viewer.dataSources.remove(layer.dataSource, true)
   }

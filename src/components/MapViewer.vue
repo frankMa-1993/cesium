@@ -73,6 +73,15 @@
       </button>
     </div>
 
+    <!-- 积水内涝点悬停名称标签 -->
+    <div
+      v-if="floodTooltipVisible"
+      class="flood-tooltip"
+      :style="floodTooltipStyle"
+    >
+      {{ floodTooltipName }}
+    </div>
+
     <!-- 积水内涝点详情弹窗 -->
     <div
       v-if="floodPopupVisible"
@@ -144,6 +153,8 @@ import { fetchFloodPoints, fetchFloodPointDetail } from '@/api/index.js'
 const DEFAULT_VIEW_HEIGHT = 5000
 const DEFAULT_VIEW_DURATION = 1.5
 const RESET_DEBOUNCE_MS = 300
+const FLOOD_BILLBOARD_SCALE = 1.0
+const FLOOD_BILLBOARD_HOVER_SCALE = 2.0
 
 const cesiumContainer = ref(null)
 const layerDdRef = ref(null)
@@ -152,10 +163,12 @@ let waterPrimitive = null
 let gaodeImageryLayer = null
 let floodLayer = null
 let tileset3d = null
+let clickDispatcher = null
+let hoveredFloodEntity = null
 
 const viewerReady = ref(false)
 const layerPanelOpen = ref(false)
-const layerWater = ref(true)
+const layerWater = ref(false)
 const layerGaode = ref(false)
 const layerFlood = ref(false)
 const layer3DTiles = ref(false)
@@ -168,11 +181,21 @@ const floodPopupVisible = ref(false)
 const floodPopupData = ref({})
 const floodPopupPosition = ref({ x: 0, y: 0 })
 
+// 积水内涝点悬停标签
+const floodTooltipVisible = ref(false)
+const floodTooltipName = ref('')
+const floodTooltipPosition = ref({ x: 0, y: 0 })
+
 let resetCooldownUntil = 0
 
 const floodPopupStyle = computed(() => ({
   left: `${floodPopupPosition.value.x + 18}px`,
   top: `${floodPopupPosition.value.y - 120}px`,
+}))
+
+const floodTooltipStyle = computed(() => ({
+  left: `${floodTooltipPosition.value.x}px`,
+  top: `${floodTooltipPosition.value.y}px`,
 }))
 
 const floodStatusText = computed(() => {
@@ -245,11 +268,10 @@ async function setFloodLayer(show) {
   if (show) {
     if (floodLayer) return
     floodLoading.value = true
-      try {
-        // debugger
+    try {
       const res = await fetchFloodPoints()
       if (res.code === 200 && res.data) {
-        floodLayer = loadFloodPoints(viewer, res.data, onFloodPointClick)
+        floodLayer = loadFloodPoints(viewer, res.data)
       }
     } catch (e) {
       console.error('[MapViewer] 积水内涝点加载失败', e)
@@ -259,6 +281,7 @@ async function setFloodLayer(show) {
     }
   } else {
     hideFloodPopup()
+    resetFloodHover()
     if (floodLayer) {
       clearFloodPoints(viewer, floodLayer)
       floodLayer = null
@@ -267,7 +290,7 @@ async function setFloodLayer(show) {
 }
 
 async function onFloodPointClick(properties, screenPos) {
-  const id = properties.id ? properties.id.getValue() : null
+  const id = getEntityProperty(properties, 'id')
   if (!id) return
 
   try {
@@ -284,6 +307,88 @@ async function onFloodPointClick(properties, screenPos) {
 
 function hideFloodPopup() {
   floodPopupVisible.value = false
+}
+
+function resetFloodHover() {
+  if (hoveredFloodEntity && hoveredFloodEntity.billboard) {
+    hoveredFloodEntity.billboard.scale = FLOOD_BILLBOARD_SCALE
+  }
+  hoveredFloodEntity = null
+  floodTooltipVisible.value = false
+  floodTooltipName.value = ''
+  if (viewer && viewer.canvas) {
+    viewer.canvas.style.cursor = ''
+  }
+}
+
+function setFloodHover(entity, screenPos) {
+  if (hoveredFloodEntity === entity) {
+    floodTooltipPosition.value = { x: screenPos.x, y: screenPos.y }
+    return
+  }
+
+  resetFloodHover()
+  hoveredFloodEntity = entity
+  if (entity.billboard) {
+    entity.billboard.scale = FLOOD_BILLBOARD_HOVER_SCALE
+  }
+
+  floodTooltipName.value = getEntityProperty(entity.properties, 'name') || ''
+  floodTooltipVisible.value = true
+  floodTooltipPosition.value = { x: screenPos.x, y: screenPos.y }
+  if (viewer && viewer.canvas) {
+    viewer.canvas.style.cursor = 'pointer'
+  }
+}
+
+function getEntityProperty(properties, key) {
+  const property = properties && properties[key]
+  if (!property) return undefined
+  if (typeof property.getValue === 'function') {
+    return property.getValue(viewer.clock.currentTime)
+  }
+  return property
+}
+
+function dispatchMapClick(click) {
+  const picked = viewer.scene.pick(click.position)
+  if (!Cesium.defined(picked) || !picked.id || !picked.id.properties) return
+
+  const properties = picked.id.properties
+  const layerType = getEntityProperty(properties, 'layerType')
+
+  if (layerType === 'floodPoint') {
+    onFloodPointClick(properties, click.position)
+  }
+}
+
+function dispatchMapMouseMove(movement) {
+  if (!layerFlood.value || !floodLayer) {
+    resetFloodHover()
+    return
+  }
+
+  const picked = viewer.scene.pick(movement.endPosition)
+  if (!Cesium.defined(picked) || !picked.id || !picked.id.properties) {
+    resetFloodHover()
+    return
+  }
+
+  const layerType = getEntityProperty(picked.id.properties, 'layerType')
+  if (layerType !== 'floodPoint') {
+    resetFloodHover()
+    return
+  }
+
+  setFloodHover(picked.id, movement.endPosition)
+}
+
+function setupMapClickDispatcher() {
+  if (!viewer || clickDispatcher) return
+  clickDispatcher = new Cesium.ScreenSpaceEventHandler(viewer.canvas)
+  clickDispatcher.setInputAction(dispatchMapClick, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+  clickDispatcher.setInputAction(dispatchMapMouseMove, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+  clickDispatcher.setInputAction(() => resetFloodHover(), Cesium.ScreenSpaceEventType.MOUSE_OUT)
 }
 
 async function set3DTilesLayer(show) {
@@ -337,6 +442,7 @@ async function initMap() {
 
   addShenzhenMask(viewer)
   addShenzhenBoundaryLine(viewer)
+  setupMapClickDispatcher()
 
   cameraFlying.value = true
   flyToShenzhenDefault()
@@ -357,6 +463,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  resetFloodHover()
   if (floodLayer && viewer) {
     clearFloodPoints(viewer, floodLayer)
     floodLayer = null
@@ -364,6 +471,10 @@ onBeforeUnmount(() => {
   if (tileset3d && viewer) {
     viewer.scene.primitives.remove(tileset3d)
     tileset3d = null
+  }
+  if (clickDispatcher && !clickDispatcher.isDestroyed()) {
+    clickDispatcher.destroy()
+    clickDispatcher = null
   }
   if (viewer && gaodeImageryLayer) {
     viewer.imageryLayers.remove(gaodeImageryLayer)
@@ -575,6 +686,41 @@ onBeforeUnmount(() => {
 @keyframes map-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+// 积水内涝点悬停名称标签
+.flood-tooltip {
+  position: absolute;
+  z-index: 45;
+  max-width: 220px;
+  padding: 6px 12px;
+  transform: translate(-50%, calc(-100% - 14px));
+  background: rgba(4, 14, 36, 0.94);
+  border: 1px solid rgba(24, 144, 255, 0.55);
+  border-radius: 6px;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.45),
+    0 0 12px rgba(24, 144, 255, 0.2);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e6f4ff;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    transform: translateX(-50%);
+    border-width: 6px 6px 0;
+    border-style: solid;
+    border-color: rgba(24, 144, 255, 0.55) transparent transparent;
   }
 }
 
