@@ -1,4 +1,5 @@
 <template>
+  <!-- 全屏地图 + 图层开关 + 点位 tooltip/详情弹窗（屏幕像素定位） -->
   <div class="map-viewer">
     <div ref="cesiumContainer" class="cesium-container"></div>
 
@@ -198,6 +199,15 @@
 </template>
 
 <script setup>
+/**
+ * MapViewer — 大屏主地图容器
+ *
+ * 职责概览：
+ * 1. 初始化 Cesium Viewer（天地图底图、世界地形、深圳遮罩与边界）
+ * 2. 图层面板开关：水域 / 高德影像 / 积水内涝点 / 公交车站（1 万点）/ Ion 3D Tiles
+ * 3. 统一地图交互：拾取、悬停放大+名称标签、点击拉详情弹窗
+ * 4. 相机：默认深圳全市视角；重置按钮；3D Tiles 加载后飞到模型包围球
+ */
 import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import {
   createViewer,
@@ -228,28 +238,32 @@ import {
   fetchBusStationDetail,
 } from '@/api/index.js'
 
-const DEFAULT_VIEW_DURATION = 1.5
-const RESET_DEBOUNCE_MS = 300
+// —— 交互与相机常量 ——
+const DEFAULT_VIEW_DURATION = 1.5 // 飞行动画时长（秒）
+const RESET_DEBOUNCE_MS = 300 // 重置视角完成后的冷却，防止连点
 const FLOOD_BILLBOARD_SCALE = 1.0
-const FLOOD_BILLBOARD_HOVER_SCALE = 2.0
+const FLOOD_BILLBOARD_HOVER_SCALE = 2.0 // 积水点悬停放大倍数（Entity Billboard）
 const BUS_BILLBOARD_SCALE = 1.0
-const BUS_BILLBOARD_HOVER_SCALE = 1.6
-const MOUSE_MOVE_THROTTLE_MS = 32
+const BUS_BILLBOARD_HOVER_SCALE = 1.6 // 公交站悬停放大倍数（BillboardCollection）
+const MOUSE_MOVE_THROTTLE_MS = 32 // 鼠标移动拾取节流，减轻 1 万点 scene.pick 压力
 
-const cesiumContainer = ref(null)
-const layerDdRef = ref(null)
+const cesiumContainer = ref(null) // Cesium 挂载 DOM
+const layerDdRef = ref(null) // 图层面板根节点，用于点击外部关闭
+
+// —— Cesium 运行时对象（非响应式，随图层增删维护引用）——
 let viewer = null
-let waterPrimitive = null
-let gaodeImageryLayer = null
-let floodLayer = null
-let busLayer = null
-let tileset3d = null
-let clickDispatcher = null
-let hoveredFloodEntity = null
-let hoveredBusBillboard = null
-let mouseMoveRafId = null
+let waterPrimitive = null // 深圳水域 Primitive（Polygon + Water 材质）
+let gaodeImageryLayer = null // 高德卫星影像 ImageryLayer
+let floodLayer = null // 积水点 CustomDataSource 封装 { dataSource }
+let busLayer = null // 公交站 BillboardCollection 封装 { collection }
+let tileset3d = null // Ion 3D Tiles 实例
+let clickDispatcher = null // 统一鼠标事件 ScreenSpaceEventHandler
+let hoveredFloodEntity = null // 当前悬停的积水 Entity
+let hoveredBusBillboard = null // 当前悬停的公交 Billboard
+let mouseMoveRafId = null // 节流用 rAF id
 let lastMouseMoveAt = 0
 
+// —— UI 响应式状态 ——
 const viewerReady = ref(false)
 const layerPanelOpen = ref(false)
 const layerWater = ref(false)
@@ -263,16 +277,16 @@ const busLoadProgress = ref(0)
 const tiles3dLoading = ref(false)
 const cameraFlying = ref(false)
 
-// 积水内涝点弹窗
+// 积水内涝点：详情弹窗 + 悬停名称
 const floodPopupVisible = ref(false)
 const floodPopupData = ref({})
 const floodPopupPosition = ref({ x: 0, y: 0 })
 
-// 积水内涝点悬停标签
 const floodTooltipVisible = ref(false)
 const floodTooltipName = ref('')
 const floodTooltipPosition = ref({ x: 0, y: 0 })
 
+// 公交车站：详情弹窗 + 悬停名称（BillboardCollection 拾取）
 const busPopupVisible = ref(false)
 const busPopupData = ref({})
 const busPopupPosition = ref({ x: 0, y: 0 })
@@ -280,8 +294,9 @@ const busTooltipVisible = ref(false)
 const busTooltipName = ref('')
 const busTooltipPosition = ref({ x: 0, y: 0 })
 
-let resetCooldownUntil = 0
+let resetCooldownUntil = 0 // 时间戳：早于该时刻则忽略重置视角
 
+// —— 弹窗 / 悬停标签：屏幕像素定位（相对地图容器左上角）——
 const floodPopupStyle = computed(() => ({
   left: `${floodPopupPosition.value.x + 18}px`,
   top: `${floodPopupPosition.value.y - 120}px`,
@@ -318,6 +333,7 @@ const busRoutesText = computed(() => {
   return Array.isArray(routes) ? routes.join('、') : routes
 })
 
+// —— 详情弹窗字段展示：枚举值转中文与颜色 ——
 const floodStatusText = computed(() => {
   const map = { active: '积水中', warning: '预警', normal: '已消退' }
   return map[floodPopupData.value.status] || floodPopupData.value.status
@@ -333,6 +349,7 @@ const statusStyle = computed(() => {
   return { color: colors[floodPopupData.value.status] || '#fff' }
 })
 
+/** 飞到深圳市行政边界包围球（与 initMap 中 setShenzhenCameraView 范围一致，但带动画） */
 function flyToShenzhenDefault() {
   if (!viewer) return
   flyToShenzhenCameraView(viewer, {
@@ -344,12 +361,16 @@ function flyToShenzhenDefault() {
   })
 }
 
+/** 右上角「重置视角」：回到深圳默认范围 */
 function onResetView() {
   if (!viewer || cameraFlying.value || Date.now() < resetCooldownUntil) return
   cameraFlying.value = true
   flyToShenzhenDefault()
 }
 
+// —— 图层开关：与图层面板 checkbox 通过 watch 联动 ——
+
+/** 水域动画图层（cesium-water.js Polygon + 内置 Water 材质） */
 function setWaterLayer(show) {
   if (!viewer) return
   if (show) {
@@ -360,6 +381,7 @@ function setWaterLayer(show) {
   }
 }
 
+/** 高德卫星影像叠加在天地图之上，alpha=0.8 与底图混合 */
 function setGaodeLayer(show) {
   if (!viewer) return
   if (show) {
@@ -373,6 +395,10 @@ function setGaodeLayer(show) {
   }
 }
 
+/**
+ * 积水内涝点图层（约 800 点）
+ * Entity + CustomDataSource，按风险等级复用 3 种 Canvas 图标
+ */
 async function setFloodLayer(show) {
   if (!viewer) return
   if (show) {
@@ -399,6 +425,10 @@ async function setFloodLayer(show) {
   }
 }
 
+/**
+ * 公交车站图层（约 1 万点）
+ * BillboardCollection 分批加载；构造时需传入 scene 以支持贴地
+ */
 async function setBusLayer(show) {
   if (!viewer) return
   if (show) {
@@ -431,6 +461,8 @@ async function setBusLayer(show) {
     }
   }
 }
+
+// —— 点位点击：按 id 请求详情 API，弹窗锚定在点击屏幕坐标 ——
 
 async function onFloodPointClick(properties, screenPos) {
   const id = getEntityProperty(properties, 'id')
@@ -471,6 +503,8 @@ async function onBusStationClick(meta, screenPos) {
 function hideBusPopup() {
   busPopupVisible.value = false
 }
+
+// —— 悬停交互：放大图标 + 显示名称 tooltip + 手型光标 ——
 
 function resetFloodHover() {
   if (hoveredFloodEntity && hoveredFloodEntity.billboard) {
@@ -540,6 +574,10 @@ function resetAllHover() {
   resetBusHover()
 }
 
+/**
+ * 读取 Entity 的 properties 字段
+ * Cesium PropertyBag 需 getValue(time)，普通对象直接取值
+ */
 function getEntityProperty(properties, key) {
   const property = properties && properties[key]
   if (!property) return undefined
@@ -549,6 +587,10 @@ function getEntityProperty(properties, key) {
   return property
 }
 
+/**
+ * 地图左键点击分发
+ * 优先级：公交站（BillboardCollection + 扩大拾取窗口）> 积水点（Entity）
+ */
 function dispatchMapClick(click) {
   if (layerBus.value && busLayer?.collection) {
     const busBillboard = pickBusStation(viewer, busLayer.collection, click.position)
@@ -581,6 +623,10 @@ function dispatchMapClick(click) {
   }
 }
 
+/**
+ * 鼠标移动悬停逻辑
+ * 公交层优先于积水层；两层同时开启时避免悬停状态冲突
+ */
 function handleMapMouseMove(movement) {
   const hasFlood = layerFlood.value && floodLayer
   const hasBus = layerBus.value && busLayer?.collection
@@ -622,6 +668,7 @@ function handleMapMouseMove(movement) {
   resetFloodHover()
 }
 
+/** 对 MOUSE_MOVE 节流：高频移动时合并到下一帧执行一次拾取 */
 function dispatchMapMouseMove(movement) {
   const now = performance.now()
   if (now - lastMouseMoveAt < MOUSE_MOVE_THROTTLE_MS) {
@@ -637,6 +684,7 @@ function dispatchMapMouseMove(movement) {
   handleMapMouseMove(movement)
 }
 
+/** 注册地图画布上的点击 / 移动 / 移出事件（仅初始化一次） */
 function setupMapClickDispatcher() {
   if (!viewer || clickDispatcher) return
   clickDispatcher = new Cesium.ScreenSpaceEventHandler(viewer.canvas)
@@ -645,6 +693,11 @@ function setupMapClickDispatcher() {
   clickDispatcher.setInputAction(() => resetAllHover(), Cesium.ScreenSpaceEventType.MOUSE_OUT)
 }
 
+/**
+ * 深圳 3D 建筑（Cesium Ion 3D Tiles）
+ * - URL / Bearer 令牌见 .env：VITE_3DTILES_URL、VITE_3DTILES_AUTH_TOKEN
+ * - 加载完成后根据 tileset 根节点 boundingSphere 飞到模型区域
+ */
 async function set3DTilesLayer(show) {
   if (!viewer) return
   if (show) {
@@ -681,15 +734,21 @@ async function set3DTilesLayer(show) {
   }
 }
 
+// 图层面板 checkbox 与 Cesium 图层增删同步
 watch(layerWater, (show) => setWaterLayer(show))
 watch(layerGaode, (show) => setGaodeLayer(show))
 watch(layerFlood, (show) => setFloodLayer(show))
 watch(layerBus, (show) => setBusLayer(show))
 watch(layer3DTiles, (show) => set3DTilesLayer(show))
 
+/**
+ * 地图初始化流水线
+ * 1. Viewer + 立即 setView 深圳（避免默认全球视角闪现）
+ * 2. 天地图底图 → 世界地形（失败则椭球）
+ * 3. 可选水域、深圳遮罩与边界线、统一鼠标事件
+ */
 async function initMap() {
   viewer = createViewer(cesiumContainer.value)
-  // 创建后立即定位深圳，避免默认全球视角；底图/地形加载期间保持该视角
   setShenzhenCameraView(viewer)
 
   await addTiandituLayers(viewer)
@@ -714,6 +773,7 @@ async function initMap() {
   viewerReady.value = true
 }
 
+/** 点击图层面板外部时收起下拉 */
 function onDocumentClick(e) {
   const el = layerDdRef.value
   if (el && !el.contains(e.target)) {
@@ -726,6 +786,7 @@ onMounted(() => {
   document.addEventListener('click', onDocumentClick)
 })
 
+/** 销毁 Viewer 前释放图层、事件与 Cesium 资源，防止内存泄漏 */
 onBeforeUnmount(() => {
   if (mouseMoveRafId) {
     cancelAnimationFrame(mouseMoveRafId)
