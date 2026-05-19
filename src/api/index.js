@@ -17,7 +17,7 @@ api.interceptors.response.use(
 export const fetchOverview = () => api.get('/overview')
 export const fetchAlerts = () => api.get('/alerts')
 export const fetchTrend = () => api.get('/trend')
-export const fetchPoints = () => api.get('/points')
-export const fetchPointDetail = (id) => api.get(`/points/${id}`)
+export const fetchFloodPoints = () => api.get('/flood-points')
+export const fetchFloodPointDetail = (id) => api.get(`/flood-points/${id}`)
 
 export default api

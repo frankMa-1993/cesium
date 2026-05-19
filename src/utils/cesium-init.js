@@ -170,89 +170,6 @@ export function createGaodeSatelliteWmtsProvider() {
 }
 
 /**
- * 加载 GeoJSON 点位并渲染为 Billboard
- * @param {Cesium.Viewer} viewer
- * @param {object} geojson
- * @param {Function} onClick
- */
-export function loadBillboardPoints(viewer, geojson, onClick) {
-  const dataSource = new Cesium.CustomDataSource('points')
-
-  geojson.features.forEach((feature) => {
-    const [lon, lat] = feature.geometry.coordinates
-    const props = feature.properties
-
-    const entity = dataSource.entities.add({
-      id: feature.id || props.id,
-      position: Cesium.Cartesian3.fromDegrees(lon, lat),
-      billboard: {
-        image: createPointCanvas(props.status),
-        scale: 1.0,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-      },
-      properties: props,
-    })
-
-    // 存储引用便于后续更新
-    entity.pointProps = props
-  })
-
-  viewer.dataSources.add(dataSource)
-
-  // 点击事件
-  const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas)
-  handler.setInputAction((click) => {
-    const picked = viewer.scene.pick(click.position)
-    if (Cesium.defined(picked) && picked.id && picked.id.properties) {
-      const cartesian = picked.id.position.getValue(viewer.clock.currentTime)
-      onClick && onClick(picked.id, cartesian)
-    }
-  }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
-
-  return { dataSource, handler }
-}
-
-/**
- * 创建点位 Canvas 图标
- * @param {string} status online | warning | danger
- */
-function createPointCanvas(status) {
-  const size = 32
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
-  const ctx = canvas.getContext('2d')
-
-  let color = '#00f0ff'
-  if (status === 'warning') color = '#ff9c00'
-  if (status === 'danger') color = '#ff4d4f'
-
-  // 外发光
-  const gradient = ctx.createRadialGradient(size / 2, size / 2, 2, size / 2, size / 2, size / 2)
-  gradient.addColorStop(0, color)
-  gradient.addColorStop(0.5, color + '80')
-  gradient.addColorStop(1, 'transparent')
-
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, size, size)
-
-  // 中心圆
-  ctx.beginPath()
-  ctx.arc(size / 2, size / 2, 5, 0, Math.PI * 2)
-  ctx.fillStyle = '#fff'
-  ctx.fill()
-
-  ctx.beginPath()
-  ctx.arc(size / 2, size / 2, 5, 0, Math.PI * 2)
-  ctx.strokeStyle = color
-  ctx.lineWidth = 2
-  ctx.stroke()
-
-  return canvas
-}
-
-/**
  * 相机飞行到指定位置
  * @param {Cesium.Viewer} viewer
  * @param {number} lon
@@ -289,7 +206,6 @@ export const cesiumPlugin = {
       createViewer,
       addTiandituLayers,
       createGaodeSatelliteWmtsProvider,
-      loadBillboardPoints,
       flyTo,
       flyToChina,
       addWaterSurface,

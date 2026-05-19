@@ -2,7 +2,7 @@
   <div class="map-viewer">
     <div ref="cesiumContainer" class="cesium-container"></div>
 
-    <!-- 左上：图层 + 图例 -->
+    <!-- 左上：图层面板 -->
     <div class="map-overlay-left">
       <div class="layer-dd" ref="layerDdRef" :class="{ 'is-open': layerPanelOpen }">
         <button
@@ -26,29 +26,22 @@
             <input v-model="layerGaode" type="checkbox" class="layer-dd__check" />
             <span>高德影像图层</span>
           </label>
+          <label class="layer-dd__row">
+            <input v-model="layerFlood" type="checkbox" class="layer-dd__check" :disabled="floodLoading" />
+            <span>
+              积水内涝点
+              <span v-if="floodLoading" class="layer-loading">加载中…</span>
+            </span>
+          </label>
+          <label class="layer-dd__row">
+            <input v-model="layer3DTiles" type="checkbox" class="layer-dd__check" :disabled="tiles3dLoading" />
+            <span>
+              深圳3D建筑
+              <span v-if="tiles3dLoading" class="layer-loading">加载中…</span>
+            </span>
+          </label>
         </div>
       </div>
-
-      <aside class="map-legend" aria-label="监测点状态图例">
-        <div class="map-legend__head">
-          <span class="map-legend__title">监测点状态</span>
-          <span class="map-legend__sub">与地图点位颜色一致</span>
-        </div>
-        <ul class="map-legend__list" role="list">
-          <li class="map-legend__row">
-            <span class="map-legend__swatch map-legend__swatch--online" aria-hidden="true" />
-            <span class="map-legend__label">正常</span>
-          </li>
-          <li class="map-legend__row">
-            <span class="map-legend__swatch map-legend__swatch--warning" aria-hidden="true" />
-            <span class="map-legend__label">预警</span>
-          </li>
-          <li class="map-legend__row">
-            <span class="map-legend__swatch map-legend__swatch--danger" aria-hidden="true" />
-            <span class="map-legend__label">告警</span>
-          </li>
-        </ul>
-      </aside>
     </div>
 
     <!-- 右上：重置视角 -->
@@ -80,36 +73,50 @@
       </button>
     </div>
 
-    <!-- 自定义气泡窗口 -->
+    <!-- 积水内涝点详情弹窗 -->
     <div
-      v-if="popupVisible"
-      class="cesium-popup"
-      :style="popupStyle"
+      v-if="floodPopupVisible"
+      class="flood-popup"
+      :style="floodPopupStyle"
+      @click.stop
     >
-      <div class="popup-title">{{ popupData.name }}</div>
-      <div class="popup-row">
-        <span class="label">状态</span>
-        <span class="value" :style="statusStyle">{{ statusText }}</span>
+      <div class="popup-header">
+        <span class="popup-title">{{ floodPopupData.name }}</span>
+        <button class="popup-close" @click="hideFloodPopup">×</button>
       </div>
-      <div class="popup-row">
-        <span class="label">类型</span>
-        <span class="value">{{ popupData.type }}</span>
-      </div>
-      <div class="popup-row">
-        <span class="label">实时值</span>
-        <span class="value">{{ popupData.value }} {{ popupData.unit }}</span>
-      </div>
-      <div class="popup-row">
-        <span class="label">经度</span>
-        <span class="value">{{ popupData.lon?.toFixed(4) }}</span>
-      </div>
-      <div class="popup-row">
-        <span class="label">纬度</span>
-        <span class="value">{{ popupData.lat?.toFixed(4) }}</span>
-      </div>
-      <div class="popup-row">
-        <span class="label">更新时间</span>
-        <span class="value">{{ popupData.updateTime }}</span>
+      <div class="popup-body">
+        <div class="popup-row">
+          <span class="label">地址</span>
+          <span class="value">{{ floodPopupData.address }}</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">风险等级</span>
+          <span class="value" :style="riskStyle">{{ floodPopupData.riskLevel }}</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">状态</span>
+          <span class="value" :style="statusStyle">{{ floodStatusText }}</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">积水深度</span>
+          <span class="value">{{ floodPopupData.depth }} cm</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">积水面积</span>
+          <span class="value">{{ floodPopupData.area }} m²</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">所属区域</span>
+          <span class="value">{{ floodPopupData.district }}</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">上报时间</span>
+          <span class="value">{{ floodPopupData.reportTime }}</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">更新时间</span>
+          <span class="value">{{ floodPopupData.updateTime }}</span>
+        </div>
       </div>
     </div>
 
@@ -117,12 +124,11 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import {
   createViewer,
   addTiandituLayers,
   createGaodeSatelliteWmtsProvider,
-  loadBillboardPoints,
 } from '@/utils/cesium-init.js'
 import * as Cesium from 'cesium'
 import {
@@ -131,7 +137,9 @@ import {
   SHENZHEN_CENTER_LON,
   SHENZHEN_CENTER_LAT,
 } from '@/utils/cesium-water.js'
-import { fetchPoints, fetchPointDetail } from '@/api/index.js'
+import { addShenzhenBoundaryLine, addShenzhenMask } from '@/utils/cesium-boundary.js'
+import { loadFloodPoints, clearFloodPoints } from '@/utils/cesium-flood-points.js'
+import { fetchFloodPoints, fetchFloodPointDetail } from '@/api/index.js'
 
 const DEFAULT_VIEW_HEIGHT = 5000
 const DEFAULT_VIEW_DURATION = 1.5
@@ -140,39 +148,46 @@ const RESET_DEBOUNCE_MS = 300
 const cesiumContainer = ref(null)
 const layerDdRef = ref(null)
 let viewer = null
-let pointLayer = null
 let waterPrimitive = null
 let gaodeImageryLayer = null
+let floodLayer = null
+let tileset3d = null
 
 const viewerReady = ref(false)
 const layerPanelOpen = ref(false)
 const layerWater = ref(true)
 const layerGaode = ref(false)
+const layerFlood = ref(false)
+const layer3DTiles = ref(false)
+const floodLoading = ref(false)
+const tiles3dLoading = ref(false)
 const cameraFlying = ref(false)
 
-const popupVisible = ref(false)
-const popupData = ref({})
-const popupPosition = ref({ x: 0, y: 0 })
+// 积水内涝点弹窗
+const floodPopupVisible = ref(false)
+const floodPopupData = ref({})
+const floodPopupPosition = ref({ x: 0, y: 0 })
 
 let resetCooldownUntil = 0
 
-const popupStyle = computed(() => ({
-  left: `${popupPosition.value.x + 15}px`,
-  top: `${popupPosition.value.y - 100}px`,
+const floodPopupStyle = computed(() => ({
+  left: `${floodPopupPosition.value.x + 18}px`,
+  top: `${floodPopupPosition.value.y - 120}px`,
 }))
 
-const statusText = computed(() => {
-  const map = { online: '正常', warning: '预警', danger: '告警' }
-  return map[popupData.value.status] || popupData.value.status
+const floodStatusText = computed(() => {
+  const map = { active: '积水中', warning: '预警', normal: '已消退' }
+  return map[floodPopupData.value.status] || floodPopupData.value.status
+})
+
+const riskStyle = computed(() => {
+  const colors = { '高': '#ff4d4f', '中': '#ff9c00', '低': '#1890ff' }
+  return { color: colors[floodPopupData.value.riskLevel] || '#fff', fontWeight: '600' }
 })
 
 const statusStyle = computed(() => {
-  const colors = {
-    online: '#00f0ff',
-    warning: '#ff9c00',
-    danger: '#ff4d4f',
-  }
-  return { color: colors[popupData.value.status] || '#fff' }
+  const colors = { active: '#ff4d4f', warning: '#ff9c00', normal: '#52c41a' }
+  return { color: colors[floodPopupData.value.status] || '#fff' }
 })
 
 function flyToShenzhenDefault() {
@@ -225,8 +240,83 @@ function setGaodeLayer(show) {
   }
 }
 
+async function setFloodLayer(show) {
+  if (!viewer) return
+  if (show) {
+    if (floodLayer) return
+    floodLoading.value = true
+      try {
+        // debugger
+      const res = await fetchFloodPoints()
+      if (res.code === 200 && res.data) {
+        floodLayer = loadFloodPoints(viewer, res.data, onFloodPointClick)
+      }
+    } catch (e) {
+      console.error('[MapViewer] 积水内涝点加载失败', e)
+      layerFlood.value = false
+    } finally {
+      floodLoading.value = false
+    }
+  } else {
+    hideFloodPopup()
+    if (floodLayer) {
+      clearFloodPoints(viewer, floodLayer)
+      floodLayer = null
+    }
+  }
+}
+
+async function onFloodPointClick(properties, screenPos) {
+  const id = properties.id ? properties.id.getValue() : null
+  if (!id) return
+
+  try {
+    const res = await fetchFloodPointDetail(id)
+    if (res.code === 200 && res.data) {
+      floodPopupData.value = res.data
+      floodPopupVisible.value = true
+      floodPopupPosition.value = { x: screenPos.x, y: screenPos.y }
+    }
+  } catch (e) {
+    console.error('[MapViewer] 积水内涝点详情加载失败', e)
+  }
+}
+
+function hideFloodPopup() {
+  floodPopupVisible.value = false
+}
+
+async function set3DTilesLayer(show) {
+  if (!viewer) return
+  if (show) {
+    if (tileset3d) return
+    tiles3dLoading.value = true
+    try {
+      const url = import.meta.env.VITE_3DTILES_URL
+      if (url) {
+        tileset3d = await Cesium.Cesium3DTileset.fromUrl(url)
+      } else {
+        tileset3d = await Cesium.Cesium3DTileset.fromIonAssetId(96188)
+      }
+      viewer.scene.primitives.add(tileset3d)
+    } catch (e) {
+      console.error('[MapViewer] 3D Tiles 加载失败', e)
+      layer3DTiles.value = false
+    } finally {
+      tiles3dLoading.value = false
+    }
+  } else {
+    if (tileset3d) {
+      viewer.scene.primitives.remove(tileset3d)
+      tileset3d = null
+    }
+  }
+}
+
 watch(layerWater, (show) => setWaterLayer(show))
 watch(layerGaode, (show) => setGaodeLayer(show))
+watch(layerFlood, (show) => setFloodLayer(show))
+watch(layer3DTiles, (show) => set3DTilesLayer(show))
 
 async function initMap() {
   viewer = createViewer(cesiumContainer.value)
@@ -245,40 +335,16 @@ async function initMap() {
     waterPrimitive = addWaterSurface(viewer)
   }
 
+  addShenzhenMask(viewer)
+  addShenzhenBoundaryLine(viewer)
+
   cameraFlying.value = true
   flyToShenzhenDefault()
 
   viewerReady.value = true
-
-  const res = await fetchPoints()
-  if (res.code === 200 && res.data) {
-    pointLayer = loadBillboardPoints(viewer, res.data, onPointClick)
-  }
-}
-
-async function onPointClick(entity, cartesian) {
-  const id = entity.id
-  const res = await fetchPointDetail(id)
-  if (res.code === 200 && res.data) {
-    popupData.value = res.data
-    popupVisible.value = true
-
-    const screenPos = Cesium.SceneTransforms.wgs84ToWindowCoordinates(
-      viewer.scene,
-      cartesian
-    )
-    if (screenPos) {
-      popupPosition.value = { x: screenPos.x, y: screenPos.y }
-    }
-  }
-}
-
-function hidePopup() {
-  popupVisible.value = false
 }
 
 function onDocumentClick(e) {
-  hidePopup()
   const el = layerDdRef.value
   if (el && !el.contains(e.target)) {
     layerPanelOpen.value = false
@@ -291,9 +357,13 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (pointLayer && viewer) {
-    pointLayer.handler.destroy()
-    viewer.dataSources.remove(pointLayer.dataSource)
+  if (floodLayer && viewer) {
+    clearFloodPoints(viewer, floodLayer)
+    floodLayer = null
+  }
+  if (tileset3d && viewer) {
+    viewer.scene.primitives.remove(tileset3d)
+    tileset3d = null
   }
   if (viewer && gaodeImageryLayer) {
     viewer.imageryLayers.remove(gaodeImageryLayer)
@@ -436,7 +506,19 @@ onBeforeUnmount(() => {
     flex-shrink: 0;
     accent-color: $primary;
     cursor: pointer;
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
   }
+}
+
+.layer-loading {
+  font-size: 10px;
+  color: $primary;
+  margin-left: 4px;
+  opacity: 0.8;
 }
 
 .reset-camera-btn {
@@ -496,87 +578,89 @@ onBeforeUnmount(() => {
   }
 }
 
-.map-legend {
-  width: 200px;
-  margin: 0;
-  padding: 12px 14px;
-  background: rgba(6, 22, 48, 0.94);
-  backdrop-filter: blur(8px);
-  border: 1px solid $border-color;
-  border-radius: 6px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+// 积水内涝点弹窗
+.flood-popup {
+  position: absolute;
+  z-index: 50;
+  width: 260px;
+  background: rgba(4, 14, 36, 0.96);
+  border: 1px solid rgba(24, 144, 255, 0.5);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(24, 144, 255, 0.15);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    display: block;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #1890ff, transparent);
+  }
 }
 
-.map-legend__head {
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(0, 240, 255, 0.18);
-}
-
-.map-legend__title {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: $primary;
-  letter-spacing: 0.04em;
-}
-
-.map-legend__sub {
-  display: block;
-  margin-top: 4px;
-  font-size: 11px;
-  line-height: 1.35;
-  color: $text-muted;
-}
-
-.map-legend__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.map-legend__row {
+.popup-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid rgba(24, 144, 255, 0.18);
 }
 
-.map-legend__swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  box-shadow:
-    0 0 0 2px rgba(255, 255, 255, 0.14),
-    0 0 12px rgba(0, 0, 0, 0.45);
-
-  &--online {
-    background: $primary;
-    box-shadow:
-      0 0 0 2px rgba(255, 255, 255, 0.14),
-      0 0 10px rgba(0, 240, 255, 0.55);
-  }
-
-  &--warning {
-    background: $warning;
-    box-shadow:
-      0 0 0 2px rgba(255, 255, 255, 0.14),
-      0 0 10px rgba(255, 156, 0, 0.45);
-  }
-
-  &--danger {
-    background: $danger;
-    box-shadow:
-      0 0 0 2px rgba(255, 255, 255, 0.14),
-      0 0 10px rgba(255, 77, 79, 0.45);
-  }
-}
-
-.map-legend__label {
+.popup-title {
   font-size: 13px;
-  color: $text-secondary;
+  font-weight: 600;
+  color: #1890ff;
+  letter-spacing: 0.04em;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popup-close {
+  appearance: none;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0 0 8px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.popup-body {
+  padding: 8px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.popup-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+
+  .label {
+    flex-shrink: 0;
+    width: 64px;
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.5;
+  }
+
+  .value {
+    flex: 1;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.5;
+    word-break: break-all;
+  }
 }
 </style>
