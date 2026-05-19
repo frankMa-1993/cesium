@@ -19,5 +19,7 @@ export const fetchAlerts = () => api.get('/alerts')
 export const fetchTrend = () => api.get('/trend')
 export const fetchFloodPoints = () => api.get('/flood-points')
 export const fetchFloodPointDetail = (id) => api.get(`/flood-points/${id}`)
+export const fetchBusStations = () => api.get('/bus-stations')
+export const fetchBusStationDetail = (id) => api.get(`/bus-stations/${id}`)
 
 export default api

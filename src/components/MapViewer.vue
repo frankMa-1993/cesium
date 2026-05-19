@@ -34,6 +34,16 @@
             </span>
           </label>
           <label class="layer-dd__row">
+            <input v-model="layerBus" type="checkbox" class="layer-dd__check" :disabled="busLoading" />
+            <span>
+              公交车站
+              <span v-if="busLoading" class="layer-loading">加载中…</span>
+              <span v-else-if="busLoadProgress > 0 && busLoadProgress < 100" class="layer-loading">
+                {{ busLoadProgress }}%
+              </span>
+            </span>
+          </label>
+          <label class="layer-dd__row">
             <input v-model="layer3DTiles" type="checkbox" class="layer-dd__check" :disabled="tiles3dLoading" />
             <span>
               深圳3D建筑
@@ -76,16 +86,72 @@
     <!-- 积水内涝点悬停名称标签 -->
     <div
       v-if="floodTooltipVisible"
-      class="flood-tooltip"
+      class="map-point-tooltip"
       :style="floodTooltipStyle"
     >
       {{ floodTooltipName }}
     </div>
 
+    <!-- 公交车站悬停名称标签 -->
+    <div
+      v-if="busTooltipVisible"
+      class="map-point-tooltip bus-tooltip"
+      :style="busTooltipStyle"
+    >
+      {{ busTooltipName }}
+    </div>
+
+    <!-- 公交车站详情弹窗 -->
+    <div
+      v-if="busPopupVisible"
+      class="map-point-popup bus-popup"
+      :style="busPopupStyle"
+      @click.stop
+    >
+      <div class="popup-header">
+        <span class="popup-title">{{ busPopupData.name }}</span>
+        <button class="popup-close" @click="hideBusPopup">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-row">
+          <span class="label">地址</span>
+          <span class="value">{{ busPopupData.address }}</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">所属区域</span>
+          <span class="value">{{ busPopupData.district }}</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">途经线路</span>
+          <span class="value">{{ busRoutesText }}</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">运营状态</span>
+          <span class="value" :style="busStatusStyle">{{ busStatusText }}</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">日客流量</span>
+          <span class="value">{{ busPopupData.dailyPassengers }} 人次</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">候车亭</span>
+          <span class="value">{{ busPopupData.shelter ? '有' : '无' }}</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">电子站牌</span>
+          <span class="value">{{ busPopupData.electronicBoard ? '有' : '无' }}</span>
+        </div>
+        <div class="popup-row">
+          <span class="label">更新时间</span>
+          <span class="value">{{ busPopupData.updateTime }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 积水内涝点详情弹窗 -->
     <div
       v-if="floodPopupVisible"
-      class="flood-popup"
+      class="map-point-popup"
       :style="floodPopupStyle"
       @click.stop
     >
@@ -148,13 +214,26 @@ import {
 } from '@/utils/cesium-water.js'
 import { addShenzhenBoundaryLine, addShenzhenMask } from '@/utils/cesium-boundary.js'
 import { loadFloodPoints, clearFloodPoints } from '@/utils/cesium-flood-points.js'
-import { fetchFloodPoints, fetchFloodPointDetail } from '@/api/index.js'
+import {
+  loadBusStations,
+  clearBusStations,
+  getBusBillboardFromPick,
+} from '@/utils/cesium-bus-stations.js'
+import {
+  fetchFloodPoints,
+  fetchFloodPointDetail,
+  fetchBusStations,
+  fetchBusStationDetail,
+} from '@/api/index.js'
 
 const DEFAULT_VIEW_HEIGHT = 5000
 const DEFAULT_VIEW_DURATION = 1.5
 const RESET_DEBOUNCE_MS = 300
 const FLOOD_BILLBOARD_SCALE = 1.0
 const FLOOD_BILLBOARD_HOVER_SCALE = 2.0
+const BUS_BILLBOARD_SCALE = 1.0
+const BUS_BILLBOARD_HOVER_SCALE = 1.6
+const MOUSE_MOVE_THROTTLE_MS = 32
 
 const cesiumContainer = ref(null)
 const layerDdRef = ref(null)
@@ -162,17 +241,24 @@ let viewer = null
 let waterPrimitive = null
 let gaodeImageryLayer = null
 let floodLayer = null
+let busLayer = null
 let tileset3d = null
 let clickDispatcher = null
 let hoveredFloodEntity = null
+let hoveredBusBillboard = null
+let mouseMoveRafId = null
+let lastMouseMoveAt = 0
 
 const viewerReady = ref(false)
 const layerPanelOpen = ref(false)
 const layerWater = ref(false)
 const layerGaode = ref(false)
 const layerFlood = ref(false)
+const layerBus = ref(false)
 const layer3DTiles = ref(false)
 const floodLoading = ref(false)
+const busLoading = ref(false)
+const busLoadProgress = ref(0)
 const tiles3dLoading = ref(false)
 const cameraFlying = ref(false)
 
@@ -186,6 +272,13 @@ const floodTooltipVisible = ref(false)
 const floodTooltipName = ref('')
 const floodTooltipPosition = ref({ x: 0, y: 0 })
 
+const busPopupVisible = ref(false)
+const busPopupData = ref({})
+const busPopupPosition = ref({ x: 0, y: 0 })
+const busTooltipVisible = ref(false)
+const busTooltipName = ref('')
+const busTooltipPosition = ref({ x: 0, y: 0 })
+
 let resetCooldownUntil = 0
 
 const floodPopupStyle = computed(() => ({
@@ -197,6 +290,32 @@ const floodTooltipStyle = computed(() => ({
   left: `${floodTooltipPosition.value.x}px`,
   top: `${floodTooltipPosition.value.y}px`,
 }))
+
+const busPopupStyle = computed(() => ({
+  left: `${busPopupPosition.value.x + 18}px`,
+  top: `${busPopupPosition.value.y - 120}px`,
+}))
+
+const busTooltipStyle = computed(() => ({
+  left: `${busTooltipPosition.value.x}px`,
+  top: `${busTooltipPosition.value.y}px`,
+}))
+
+const busStatusText = computed(() => {
+  const map = { normal: '正常运营', busy: '客流繁忙', maintenance: '维护中' }
+  return map[busPopupData.value.status] || busPopupData.value.status
+})
+
+const busStatusStyle = computed(() => {
+  const colors = { normal: '#52c41a', busy: '#ff9c00', maintenance: '#ff4d4f' }
+  return { color: colors[busPopupData.value.status] || '#fff', fontWeight: '600' }
+})
+
+const busRoutesText = computed(() => {
+  const routes = busPopupData.value.routes
+  if (!routes) return '-'
+  return Array.isArray(routes) ? routes.join('、') : routes
+})
 
 const floodStatusText = computed(() => {
   const map = { active: '积水中', warning: '预警', normal: '已消退' }
@@ -289,6 +408,39 @@ async function setFloodLayer(show) {
   }
 }
 
+async function setBusLayer(show) {
+  if (!viewer) return
+  if (show) {
+    if (busLayer) return
+    busLoading.value = true
+    busLoadProgress.value = 0
+    try {
+      const res = await fetchBusStations()
+      if (res.code === 200 && res.data) {
+        busLayer = await loadBusStations(viewer, res.data, {
+          onProgress: (loaded, total) => {
+            busLoadProgress.value = Math.round((loaded / total) * 100)
+          },
+        })
+        busLoadProgress.value = 100
+      }
+    } catch (e) {
+      console.error('[MapViewer] 公交车站加载失败', e)
+      layerBus.value = false
+    } finally {
+      busLoading.value = false
+    }
+  } else {
+    hideBusPopup()
+    resetBusHover()
+    busLoadProgress.value = 0
+    if (busLayer) {
+      clearBusStations(viewer, busLayer)
+      busLayer = null
+    }
+  }
+}
+
 async function onFloodPointClick(properties, screenPos) {
   const id = getEntityProperty(properties, 'id')
   if (!id) return
@@ -309,6 +461,26 @@ function hideFloodPopup() {
   floodPopupVisible.value = false
 }
 
+async function onBusStationClick(meta, screenPos) {
+  const id = meta?.id
+  if (!id) return
+
+  try {
+    const res = await fetchBusStationDetail(id)
+    if (res.code === 200 && res.data) {
+      busPopupData.value = res.data
+      busPopupVisible.value = true
+      busPopupPosition.value = { x: screenPos.x, y: screenPos.y }
+    }
+  } catch (e) {
+    console.error('[MapViewer] 公交车站详情加载失败', e)
+  }
+}
+
+function hideBusPopup() {
+  busPopupVisible.value = false
+}
+
 function resetFloodHover() {
   if (hoveredFloodEntity && hoveredFloodEntity.billboard) {
     hoveredFloodEntity.billboard.scale = FLOOD_BILLBOARD_SCALE
@@ -316,7 +488,7 @@ function resetFloodHover() {
   hoveredFloodEntity = null
   floodTooltipVisible.value = false
   floodTooltipName.value = ''
-  if (viewer && viewer.canvas) {
+  if (viewer && viewer.canvas && !hoveredBusBillboard) {
     viewer.canvas.style.cursor = ''
   }
 }
@@ -341,6 +513,41 @@ function setFloodHover(entity, screenPos) {
   }
 }
 
+function resetBusHover() {
+  if (hoveredBusBillboard) {
+    hoveredBusBillboard.scale = BUS_BILLBOARD_SCALE
+    hoveredBusBillboard = null
+  }
+  busTooltipVisible.value = false
+  busTooltipName.value = ''
+  if (viewer && viewer.canvas && !hoveredFloodEntity) {
+    viewer.canvas.style.cursor = ''
+  }
+}
+
+function setBusHover(billboard, screenPos) {
+  if (hoveredBusBillboard === billboard) {
+    busTooltipPosition.value = { x: screenPos.x, y: screenPos.y }
+    return
+  }
+
+  resetBusHover()
+  hoveredBusBillboard = billboard
+  billboard.scale = BUS_BILLBOARD_HOVER_SCALE
+
+  busTooltipName.value = billboard._meta?.name || ''
+  busTooltipVisible.value = true
+  busTooltipPosition.value = { x: screenPos.x, y: screenPos.y }
+  if (viewer && viewer.canvas) {
+    viewer.canvas.style.cursor = 'pointer'
+  }
+}
+
+function resetAllHover() {
+  resetFloodHover()
+  resetBusHover()
+}
+
 function getEntityProperty(properties, key) {
   const property = properties && properties[key]
   if (!property) return undefined
@@ -352,7 +559,17 @@ function getEntityProperty(properties, key) {
 
 function dispatchMapClick(click) {
   const picked = viewer.scene.pick(click.position)
-  if (!Cesium.defined(picked) || !picked.id || !picked.id.properties) return
+  if (!Cesium.defined(picked)) return
+
+  if (layerBus.value && busLayer?.collection) {
+    const busBillboard = getBusBillboardFromPick(picked, busLayer.collection)
+    if (busBillboard) {
+      onBusStationClick(busBillboard._meta, click.position)
+      return
+    }
+  }
+
+  if (!picked.id || !picked.id.properties) return
 
   const properties = picked.id.properties
   const layerType = getEntityProperty(properties, 'layerType')
@@ -362,25 +579,60 @@ function dispatchMapClick(click) {
   }
 }
 
-function dispatchMapMouseMove(movement) {
-  if (!layerFlood.value || !floodLayer) {
-    resetFloodHover()
+function handleMapMouseMove(movement) {
+  const hasFlood = layerFlood.value && floodLayer
+  const hasBus = layerBus.value && busLayer?.collection
+
+  if (!hasFlood && !hasBus) {
+    resetAllHover()
     return
   }
 
   const picked = viewer.scene.pick(movement.endPosition)
-  if (!Cesium.defined(picked) || !picked.id || !picked.id.properties) {
-    resetFloodHover()
+
+  if (hasBus) {
+    const busBillboard = getBusBillboardFromPick(picked, busLayer.collection)
+    if (busBillboard) {
+      resetFloodHover()
+      setBusHover(busBillboard, movement.endPosition)
+      return
+    }
+    resetBusHover()
+  }
+
+  if (hasFlood) {
+    if (!Cesium.defined(picked) || !picked.id || !picked.id.properties) {
+      resetFloodHover()
+      return
+    }
+
+    const layerType = getEntityProperty(picked.id.properties, 'layerType')
+    if (layerType !== 'floodPoint') {
+      resetFloodHover()
+      return
+    }
+
+    resetBusHover()
+    setFloodHover(picked.id, movement.endPosition)
     return
   }
 
-  const layerType = getEntityProperty(picked.id.properties, 'layerType')
-  if (layerType !== 'floodPoint') {
-    resetFloodHover()
+  resetFloodHover()
+}
+
+function dispatchMapMouseMove(movement) {
+  const now = performance.now()
+  if (now - lastMouseMoveAt < MOUSE_MOVE_THROTTLE_MS) {
+    if (mouseMoveRafId) return
+    mouseMoveRafId = requestAnimationFrame(() => {
+      mouseMoveRafId = null
+      lastMouseMoveAt = performance.now()
+      handleMapMouseMove(movement)
+    })
     return
   }
-
-  setFloodHover(picked.id, movement.endPosition)
+  lastMouseMoveAt = now
+  handleMapMouseMove(movement)
 }
 
 function setupMapClickDispatcher() {
@@ -388,7 +640,7 @@ function setupMapClickDispatcher() {
   clickDispatcher = new Cesium.ScreenSpaceEventHandler(viewer.canvas)
   clickDispatcher.setInputAction(dispatchMapClick, Cesium.ScreenSpaceEventType.LEFT_CLICK)
   clickDispatcher.setInputAction(dispatchMapMouseMove, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
-  clickDispatcher.setInputAction(() => resetFloodHover(), Cesium.ScreenSpaceEventType.MOUSE_OUT)
+  clickDispatcher.setInputAction(() => resetAllHover(), Cesium.ScreenSpaceEventType.MOUSE_OUT)
 }
 
 async function set3DTilesLayer(show) {
@@ -421,6 +673,7 @@ async function set3DTilesLayer(show) {
 watch(layerWater, (show) => setWaterLayer(show))
 watch(layerGaode, (show) => setGaodeLayer(show))
 watch(layerFlood, (show) => setFloodLayer(show))
+watch(layerBus, (show) => setBusLayer(show))
 watch(layer3DTiles, (show) => set3DTilesLayer(show))
 
 async function initMap() {
@@ -463,10 +716,18 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  resetFloodHover()
+  if (mouseMoveRafId) {
+    cancelAnimationFrame(mouseMoveRafId)
+    mouseMoveRafId = null
+  }
+  resetAllHover()
   if (floodLayer && viewer) {
     clearFloodPoints(viewer, floodLayer)
     floodLayer = null
+  }
+  if (busLayer && viewer) {
+    clearBusStations(viewer, busLayer)
+    busLayer = null
   }
   if (tileset3d && viewer) {
     viewer.scene.primitives.remove(tileset3d)
@@ -689,8 +950,8 @@ onBeforeUnmount(() => {
   }
 }
 
-// 积水内涝点悬停名称标签
-.flood-tooltip {
+// 地图点位悬停名称标签
+.map-point-tooltip {
   position: absolute;
   z-index: 45;
   max-width: 220px;
@@ -724,8 +985,19 @@ onBeforeUnmount(() => {
   }
 }
 
-// 积水内涝点弹窗
-.flood-popup {
+.bus-tooltip {
+  border-color: rgba(82, 196, 26, 0.55);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.45),
+    0 0 12px rgba(82, 196, 26, 0.2);
+
+  &::after {
+    border-color: rgba(82, 196, 26, 0.55) transparent transparent;
+  }
+}
+
+// 地图点位详情弹窗
+.map-point-popup {
   position: absolute;
   z-index: 50;
   width: 260px;
@@ -742,6 +1014,19 @@ onBeforeUnmount(() => {
     display: block;
     height: 2px;
     background: linear-gradient(90deg, transparent, #1890ff, transparent);
+  }
+}
+
+.bus-popup {
+  border-color: rgba(82, 196, 26, 0.5);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(82, 196, 26, 0.15);
+
+  &::before {
+    background: linear-gradient(90deg, transparent, #52c41a, transparent);
+  }
+
+  .popup-title {
+    color: #52c41a;
   }
 }
 
