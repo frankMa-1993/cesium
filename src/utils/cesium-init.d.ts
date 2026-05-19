@@ -23,6 +23,31 @@ export function flyTo(
 
 export function flyToChina(viewer: Viewer): void
 
+export const DEFAULT_3DTILES_URL: string
+
+export function create3DTilesResource(
+  url: string,
+  authToken?: string
+): string | import('cesium').Resource
+
+export function load3DTileset(options?: {
+  url?: string
+  ionAssetId?: number
+  authToken?: string
+}): Promise<import('cesium').Cesium3DTileset>
+
+export function get3DTilesetCenter(tileset: import('cesium').Cesium3DTileset): {
+  lon: number
+  lat: number
+  height: number
+}
+
+export function flyTo3DTileset(
+  viewer: Viewer,
+  tileset: import('cesium').Cesium3DTileset,
+  options?: { duration?: number; complete?: () => void }
+): Promise<void>
+
 export const cesiumPlugin: {
   install(app: import('vue').App): void
 }

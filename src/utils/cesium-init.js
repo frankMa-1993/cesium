@@ -197,6 +197,83 @@ export function flyToChina(viewer) {
   flyTo(viewer, 105, 35, 5000000, 2)
 }
 
+/** 深圳 3D 建筑默认瓦片地址（Ion 资产 2464651） */
+export const DEFAULT_3DTILES_URL =
+  'https://assets.ion.cesium.com/ap-northeast-1/2464651/tileset.json?v=1'
+
+function resolve3DTilesAuthHeader(authToken) {
+  const raw = (authToken ?? import.meta.env.VITE_3DTILES_AUTH_TOKEN ?? '').trim()
+  if (!raw) return null
+  return raw.startsWith('Bearer ') ? raw : `Bearer ${raw}`
+}
+
+/**
+ * 将 tileset URL 包装为带 Authorization 的 Resource（子瓦片请求会继承 headers）
+ * @param {string} url
+ * @param {string} [authToken]
+ */
+export function create3DTilesResource(url, authToken) {
+  const authorization = resolve3DTilesAuthHeader(authToken)
+  if (!authorization) return url
+  return new Cesium.Resource({
+    url,
+    headers: { Authorization: authorization },
+  })
+}
+
+/**
+ * 加载 3D Tiles（兼容 Cesium 1.100：无 fromUrl / fromIonAssetId 静态方法）
+ * @param {{ url?: string, ionAssetId?: number, authToken?: string }} options
+ * @returns {Promise<Cesium.Cesium3DTileset>}
+ */
+export async function load3DTileset(options = {}) {
+  const { url = DEFAULT_3DTILES_URL, ionAssetId, authToken } = options
+
+  let tilesetUrl = url
+  if (!tilesetUrl && ionAssetId != null) {
+    tilesetUrl = await Cesium.IonResource.fromAssetId(ionAssetId)
+  }
+
+  const tileset = new Cesium.Cesium3DTileset({
+    url: create3DTilesResource(tilesetUrl, authToken),
+  })
+  await tileset.readyPromise
+  return tileset
+}
+
+/**
+ * 从已加载的 3D Tiles 包围球解析中心经纬度（数据来自 tileset 根节点边界）
+ * @param {Cesium.Cesium3DTileset} tileset
+ */
+export function get3DTilesetCenter(tileset) {
+  const carto = Cesium.Cartographic.fromCartesian(tileset.boundingSphere.center)
+  return {
+    lon: Cesium.Math.toDegrees(carto.longitude),
+    lat: Cesium.Math.toDegrees(carto.latitude),
+    height: carto.height,
+  }
+}
+
+/**
+ * 相机飞行到 3D Tiles 所在区域（基于 tileset 边界球，无需手写经纬度）
+ * @param {Cesium.Viewer} viewer
+ * @param {Cesium.Cesium3DTileset} tileset
+ * @param {{ duration?: number, complete?: () => void }} [options]
+ */
+export async function flyTo3DTileset(viewer, tileset, options = {}) {
+  const { duration = 1.5, complete } = options
+  const offset = new Cesium.HeadingPitchRange(
+    0,
+    Cesium.Math.toRadians(-45),
+    tileset.boundingSphere.radius * 2.2,
+  )
+  const flight = viewer.flyTo(tileset, { duration, offset })
+  if (flight && typeof flight.then === 'function') {
+    await flight
+  }
+  complete?.()
+}
+
 /**
  * 全局 Vue 插件，暴露 $cesium 方法
  */

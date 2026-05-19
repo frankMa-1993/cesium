@@ -60,7 +60,6 @@
         type="button"
         class="reset-camera-btn"
         :class="{ 'is-busy': cameraFlying }"
-        :disabled="!viewerReady || cameraFlying"
         title="重置视角"
         aria-label="重置视角"
         @click.stop="onResetView"
@@ -204,20 +203,23 @@ import {
   createViewer,
   addTiandituLayers,
   createGaodeSatelliteWmtsProvider,
+  load3DTileset,
+  flyTo3DTileset,
+  get3DTilesetCenter,
 } from '@/utils/cesium-init.js'
 import * as Cesium from 'cesium'
+import { addWaterSurface, removeWaterSurface } from '@/utils/cesium-water.js'
 import {
-  addWaterSurface,
-  removeWaterSurface,
-  SHENZHEN_CENTER_LON,
-  SHENZHEN_CENTER_LAT,
-} from '@/utils/cesium-water.js'
-import { addShenzhenBoundaryLine, addShenzhenMask } from '@/utils/cesium-boundary.js'
+  addShenzhenBoundaryLine,
+  addShenzhenMask,
+  setShenzhenCameraView,
+  flyToShenzhenCameraView,
+} from '@/utils/cesium-boundary.js'
 import { loadFloodPoints, clearFloodPoints } from '@/utils/cesium-flood-points.js'
 import {
   loadBusStations,
   clearBusStations,
-  getBusBillboardFromPick,
+  pickBusStation,
 } from '@/utils/cesium-bus-stations.js'
 import {
   fetchFloodPoints,
@@ -226,7 +228,6 @@ import {
   fetchBusStationDetail,
 } from '@/api/index.js'
 
-const DEFAULT_VIEW_HEIGHT = 5000
 const DEFAULT_VIEW_DURATION = 1.5
 const RESET_DEBOUNCE_MS = 300
 const FLOOD_BILLBOARD_SCALE = 1.0
@@ -334,17 +335,7 @@ const statusStyle = computed(() => {
 
 function flyToShenzhenDefault() {
   if (!viewer) return
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(
-      SHENZHEN_CENTER_LON,
-      SHENZHEN_CENTER_LAT,
-      DEFAULT_VIEW_HEIGHT
-    ),
-    orientation: {
-      heading: Cesium.Math.toRadians(0),
-      pitch: Cesium.Math.toRadians(-45),
-      roll: 0,
-    },
+  flyToShenzhenCameraView(viewer, {
     duration: DEFAULT_VIEW_DURATION,
     complete: () => {
       cameraFlying.value = false
@@ -515,7 +506,7 @@ function setFloodHover(entity, screenPos) {
 
 function resetBusHover() {
   if (hoveredBusBillboard) {
-    hoveredBusBillboard.scale = BUS_BILLBOARD_SCALE
+    hoveredBusBillboard.scale = hoveredBusBillboard._baseScale ?? BUS_BILLBOARD_SCALE
     hoveredBusBillboard = null
   }
   busTooltipVisible.value = false
@@ -533,7 +524,8 @@ function setBusHover(billboard, screenPos) {
 
   resetBusHover()
   hoveredBusBillboard = billboard
-  billboard.scale = BUS_BILLBOARD_HOVER_SCALE
+  const base = billboard._baseScale ?? BUS_BILLBOARD_SCALE
+  billboard.scale = base * BUS_BILLBOARD_HOVER_SCALE
 
   busTooltipName.value = billboard._meta?.name || ''
   busTooltipVisible.value = true
@@ -558,24 +550,34 @@ function getEntityProperty(properties, key) {
 }
 
 function dispatchMapClick(click) {
-  const picked = viewer.scene.pick(click.position)
-  if (!Cesium.defined(picked)) return
-
   if (layerBus.value && busLayer?.collection) {
-    const busBillboard = getBusBillboardFromPick(picked, busLayer.collection)
+    const busBillboard = pickBusStation(viewer, busLayer.collection, click.position)
     if (busBillboard) {
+      hideFloodPopup()
       onBusStationClick(busBillboard._meta, click.position)
       return
     }
   }
 
-  if (!picked.id || !picked.id.properties) return
+  const picked = viewer.scene.pick(click.position)
+  if (!Cesium.defined(picked)) {
+    hideBusPopup()
+    return
+  }
+
+  if (!picked.id || !picked.id.properties) {
+    hideBusPopup()
+    return
+  }
 
   const properties = picked.id.properties
   const layerType = getEntityProperty(properties, 'layerType')
 
   if (layerType === 'floodPoint') {
+    hideBusPopup()
     onFloodPointClick(properties, click.position)
+  } else {
+    hideBusPopup()
   }
 }
 
@@ -588,10 +590,8 @@ function handleMapMouseMove(movement) {
     return
   }
 
-  const picked = viewer.scene.pick(movement.endPosition)
-
   if (hasBus) {
-    const busBillboard = getBusBillboardFromPick(picked, busLayer.collection)
+    const busBillboard = pickBusStation(viewer, busLayer.collection, movement.endPosition)
     if (busBillboard) {
       resetFloodHover()
       setBusHover(busBillboard, movement.endPosition)
@@ -599,6 +599,8 @@ function handleMapMouseMove(movement) {
     }
     resetBusHover()
   }
+
+  const picked = viewer.scene.pick(movement.endPosition)
 
   if (hasFlood) {
     if (!Cesium.defined(picked) || !picked.id || !picked.id.properties) {
@@ -650,15 +652,24 @@ async function set3DTilesLayer(show) {
     tiles3dLoading.value = true
     try {
       const url = import.meta.env.VITE_3DTILES_URL
-      if (url) {
-        tileset3d = await Cesium.Cesium3DTileset.fromUrl(url)
-      } else {
-        tileset3d = await Cesium.Cesium3DTileset.fromIonAssetId(96188)
-      }
+      tileset3d = await load3DTileset({ url: url || undefined })
       viewer.scene.primitives.add(tileset3d)
+
+      const center = get3DTilesetCenter(tileset3d)
+      console.info('[MapViewer] 3D Tiles 中心', center.lon.toFixed(5), center.lat.toFixed(5))
+
+      cameraFlying.value = true
+      await flyTo3DTileset(viewer, tileset3d, {
+        duration: DEFAULT_VIEW_DURATION,
+        complete: () => {
+          cameraFlying.value = false
+          resetCooldownUntil = Date.now() + RESET_DEBOUNCE_MS
+        },
+      })
     } catch (e) {
       console.error('[MapViewer] 3D Tiles 加载失败', e)
       layer3DTiles.value = false
+      cameraFlying.value = false
     } finally {
       tiles3dLoading.value = false
     }
@@ -678,6 +689,9 @@ watch(layer3DTiles, (show) => set3DTilesLayer(show))
 
 async function initMap() {
   viewer = createViewer(cesiumContainer.value)
+  // 创建后立即定位深圳，避免默认全球视角；底图/地形加载期间保持该视角
+  setShenzhenCameraView(viewer)
+
   await addTiandituLayers(viewer)
 
   try {
@@ -696,9 +710,6 @@ async function initMap() {
   addShenzhenMask(viewer)
   addShenzhenBoundaryLine(viewer)
   setupMapClickDispatcher()
-
-  cameraFlying.value = true
-  flyToShenzhenDefault()
 
   viewerReady.value = true
 }

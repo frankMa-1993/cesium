@@ -151,6 +151,44 @@ export const GUANGDONG_OUTER = [
 
 let boundaryLineEntity = null
 let maskEntity = null
+let shenzhenBoundingSphere = null
+
+/** 基于行政边界计算深圳市包围球（用于相机定位） */
+export function getShenzhenBoundingSphere() {
+  if (!shenzhenBoundingSphere) {
+    const positions = Cesium.Cartesian3.fromDegreesArray(SHENZHEN_BOUNDARY)
+    shenzhenBoundingSphere = Cesium.BoundingSphere.fromPoints(positions)
+  }
+  return shenzhenBoundingSphere
+}
+
+const SHENZHEN_CAMERA_OFFSET = new Cesium.HeadingPitchRange(
+  0,
+  Cesium.Math.toRadians(-45),
+  0,
+)
+
+/**
+ * 立即将相机定位到深圳市（无飞行动画，用于初始化避免先显示全球视角）
+ * @param {Cesium.Viewer} viewer
+ */
+export function setShenzhenCameraView(viewer) {
+  viewer.camera.viewBoundingSphere(getShenzhenBoundingSphere(), SHENZHEN_CAMERA_OFFSET)
+}
+
+/**
+ * 飞行动画定位到深圳市
+ * @param {Cesium.Viewer} viewer
+ * @param {{ duration?: number, complete?: () => void }} [options]
+ */
+export function flyToShenzhenCameraView(viewer, options = {}) {
+  const { duration = 1.5, complete } = options
+  return viewer.camera.flyToBoundingSphere(getShenzhenBoundingSphere(), {
+    offset: SHENZHEN_CAMERA_OFFSET,
+    duration,
+    complete,
+  })
+}
 
 /**
  * 绘制深圳市行政边界线（青色发光线，贴地）
